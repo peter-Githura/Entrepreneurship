@@ -1353,8 +1353,9 @@
         localIds.add(id);
         localFingerprints.add(fp);
         sales.push({
-          id, orderNumber: r.orderNumber||'', customerName: r.customerName||'', comment: r.comment||'',
+          id, orderNumber: r.orderNumber||'', customerName: r.customerName||'', customerPhone: r.customerPhone||'', comment: r.comment||'',
           date: r.date||todayStr(), item: r.item||'', quantity: qty, platform: r.platform||'Glovo',
+          riderName: r.riderName||'', saleTime: r.saleTime||'',
           sellingPrice: qty ? revenue/qty : 0, costPrice: qty ? purchaseTotal/qty : 0,
           revenue, paymentMode: r.paymentMode||'', transportCost,
           commissionRate, commission, profit, status: r.status||'Completed', reason: r.reason||'', sync:'ok'
@@ -1994,8 +1995,9 @@
         const profit=Number(r.profit)||(revenue-purchaseTotal-transportCost-commission);
         const id=r.id||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
         localIds.add(id); localFp.add(fp);
-        sales.push({ id, orderNumber:r.orderNumber||'', customerName:r.customerName||'', comment:r.comment||'',
+        sales.push({ id, orderNumber:r.orderNumber||'', customerName:r.customerName||'', customerPhone:r.customerPhone||'', comment:r.comment||'',
           date:r.date||todayStr(), item:r.item||'', quantity:qty, platform:r.platform||'Glovo',
+          riderName:r.riderName||'', saleTime:r.saleTime||'',
           sellingPrice:qty?revenue/qty:0, costPrice:qty?purchaseTotal/qty:0,
           revenue, paymentMode:r.paymentMode||'', transportCost, commissionRate, commission, profit,
           status:r.status||'Completed', reason:r.reason||'', sync:'ok' });
