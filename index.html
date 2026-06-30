@@ -1156,6 +1156,31 @@
 
 <script>
 (function(){
+  // ---------- Universal Storage Shim ----------
+  // Inside Claude.ai, window.storage is provided automatically.
+  // On external hosts (GitHub Pages, Netlify, etc.) window.storage does not
+  // exist, so we transparently fall back to localStorage. This guarantees
+  // data persists correctly no matter where this file is hosted.
+  const hasNativeStorage = typeof window.storage !== 'undefined'
+    && typeof window.storage.get === 'function'
+    && typeof window.storage.set === 'function';
+
+  const appStorage = hasNativeStorage ? window.storage : {
+    async get(key){
+      try{
+        const raw = localStorage.getItem('elfancy_'+key);
+        if(raw === null) return null;
+        return { key, value: raw, shared:false };
+      }catch(e){ return null; }
+    },
+    async set(key, value){
+      try{
+        localStorage.setItem('elfancy_'+key, value);
+        return { key, value, shared:false };
+      }catch(e){ return null; }
+    }
+  };
+
   // ---------- State ----------
   let sales = [];
   let returns = [];
@@ -1177,68 +1202,68 @@
   // ---------- Storage ----------
   async function loadState(){
     try{
-      const r = await window.storage.get('elfancy-sales', false);
+      const r = await appStorage.get('elfancy-sales', false);
       sales = r && r.value ? JSON.parse(r.value) : [];
     }catch(e){ sales = []; }
     try{
-      const r2 = await window.storage.get('elfancy-settings', false);
+      const r2 = await appStorage.get('elfancy-settings', false);
       settings = r2 && r2.value ? JSON.parse(r2.value) : { webhookUrl:'' };
     }catch(e){ settings = { webhookUrl:'' }; }
     try{
-      const r3 = await window.storage.get('elfancy-users', false);
+      const r3 = await appStorage.get('elfancy-users', false);
       if(r3 && r3.value){ users = JSON.parse(r3.value); }
     }catch(e){ /* keep default admin */ }
     try{
-      const r4 = await window.storage.get('elfancy-returns', false);
+      const r4 = await appStorage.get('elfancy-returns', false);
       returns = r4 && r4.value ? JSON.parse(r4.value) : [];
     }catch(e){ returns = []; }
     try{
-      const r5 = await window.storage.get('elfancy-inventory', false);
+      const r5 = await appStorage.get('elfancy-inventory', false);
       inventory = r5 && r5.value ? JSON.parse(r5.value) : [];
     }catch(e){ inventory = []; }
     try{
-      const r6 = await window.storage.get('elfancy-customers', false);
+      const r6 = await appStorage.get('elfancy-customers', false);
       customerBook = r6 && r6.value ? JSON.parse(r6.value) : {};
     }catch(e){ customerBook = {}; }
     try{
-      const r7 = await window.storage.get('elfancy-expenses', false);
+      const r7 = await appStorage.get('elfancy-expenses', false);
       expenses = r7 && r7.value ? JSON.parse(r7.value) : [];
     }catch(e){ expenses = []; }
     try{
-      const r8 = await window.storage.get('elfancy-riders', false);
+      const r8 = await appStorage.get('elfancy-riders', false);
       riders = r8 && r8.value ? JSON.parse(r8.value) : [];
     }catch(e){ riders = []; }
   }
   async function saveSales(){
-    try{ await window.storage.set('elfancy-sales', JSON.stringify(sales), false); }
+    try{ await appStorage.set('elfancy-sales', JSON.stringify(sales), false); }
     catch(e){ console.error('save sales failed', e); }
   }
   async function saveReturns(){
-    try{ await window.storage.set('elfancy-returns', JSON.stringify(returns), false); }
+    try{ await appStorage.set('elfancy-returns', JSON.stringify(returns), false); }
     catch(e){ console.error('save returns failed', e); }
   }
   async function saveInventory(){
-    try{ await window.storage.set('elfancy-inventory', JSON.stringify(inventory), false); }
+    try{ await appStorage.set('elfancy-inventory', JSON.stringify(inventory), false); }
     catch(e){ console.error('save inventory failed', e); }
   }
   async function saveCustomerBook(){
-    try{ await window.storage.set('elfancy-customers', JSON.stringify(customerBook), false); }
+    try{ await appStorage.set('elfancy-customers', JSON.stringify(customerBook), false); }
     catch(e){ console.error('save customers failed', e); }
   }
   async function saveExpenses(){
-    try{ await window.storage.set('elfancy-expenses', JSON.stringify(expenses), false); }
+    try{ await appStorage.set('elfancy-expenses', JSON.stringify(expenses), false); }
     catch(e){ console.error('save expenses failed', e); }
   }
   async function saveRiders(){
-    try{ await window.storage.set('elfancy-riders', JSON.stringify(riders), false); }
+    try{ await appStorage.set('elfancy-riders', JSON.stringify(riders), false); }
     catch(e){ console.error('save riders failed', e); }
   }
   async function saveSettings(){
-    try{ await window.storage.set('elfancy-settings', JSON.stringify(settings), false); }
+    try{ await appStorage.set('elfancy-settings', JSON.stringify(settings), false); }
     catch(e){ console.error('save settings failed', e); }
   }
   async function saveUsers(){
-    try{ await window.storage.set('elfancy-users', JSON.stringify(users), false); }
+    try{ await appStorage.set('elfancy-users', JSON.stringify(users), false); }
     catch(e){ console.error('save users failed', e); }
   }
 
@@ -1979,7 +2004,7 @@
       if(imported>0){
         await saveSales();
         // Reset cleared flag — user now has real data from sheet
-        try{ await window.storage.set('elfancy-cleared','false',false); }catch(e){}
+        try{ await appStorage.set('elfancy-cleared','false',false); }catch(e){}
       }
       renderAll();
       pill.className='auto-sync-pill done';
@@ -2882,8 +2907,8 @@
     if(!confirm('Last chance — are you absolutely sure you want to wipe all local sales data?')) return;
     sales = [];
     try{
-      await window.storage.set('elfancy-sales', JSON.stringify([]), false);
-      await window.storage.set('elfancy-cleared', 'true', false);
+      await appStorage.set('elfancy-sales', JSON.stringify([]), false);
+      await appStorage.set('elfancy-cleared', 'true', false);
     }catch(e){}
     renderAll();
     statusEl.className='status-line show ok';
@@ -2962,7 +2987,7 @@
     await loadState();
     // Only merge seed data if the user hasn't explicitly cleared their data
     let wasCleared = false;
-    try{ const r = await window.storage.get('elfancy-cleared',false); wasCleared = !!(r&&r.value); }catch(e){}
+    try{ const r = await appStorage.get('elfancy-cleared',false); wasCleared = !!(r&&r.value); }catch(e){}
     if(!wasCleared){
       const existingIds = new Set(sales.map(s=>s.id));
       let seeded = 0;
