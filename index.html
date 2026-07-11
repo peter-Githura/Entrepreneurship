@@ -822,10 +822,27 @@
 
   <!-- ===== PRODUCT COMPARISON ===== -->
   <div class="panel" style="margin-top:18px;">
-    <h2>Product comparison <span class="hint">margin vs volume</span></h2>
-    <div class="table-wrap">
-      <table><thead><tr><th>#</th><th>Product</th><th>Units sold</th><th>Revenue</th><th>Avg sell price</th><th>Avg cost</th><th>Margin %</th><th>Total profit</th><th>Turnover rate</th></tr></thead>
-      <tbody id="prodCompBody"></tbody></table>
+    <h2 style="display:flex;align-items:center;justify-content:space-between;">
+      Product comparison <span class="hint">margin vs volume</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="ghost-btn" id="prodCollapseBtn" style="font-size:12px;padding:5px 12px;">⊟ Show top 10</button>
+      </div>
+    </h2>
+    <div class="table-wrap" id="prodCompWrap" style="max-height:420px;overflow-y:auto;">
+      <table style="min-width:900px;">
+        <thead>
+          <tr>
+            <th style="position:sticky;left:0;background:var(--paper);z-index:2;min-width:260px;">#&nbsp;&nbsp;Product</th>
+            <th>Units sold</th><th>Revenue</th><th>Avg sell price</th>
+            <th>Avg cost</th><th>Margin %</th><th>Total profit</th><th>Turnover rate</th>
+          </tr>
+        </thead>
+        <tbody id="prodCompBody"></tbody>
+      </table>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;align-items:center;gap:8px;">
+      <span id="prodCompCount"></span>
+      <span>· Scroll table horizontally to see all columns · Product column stays pinned</span>
     </div>
   </div>
 
@@ -2784,6 +2801,7 @@
   }
 
   // ---------- Product comparison ----------
+  let prodCompCollapsed = true;
   function renderProductComparison(){
     const byProduct={};
     sales.filter(s=>s.status==='Completed'&&s.item).forEach(s=>{
@@ -2795,28 +2813,33 @@
       byProduct[k].profit+=s.profit||0;
       if(s.sellingPrice) byProduct[k].prices.push(s.sellingPrice);
     });
-    const list=Object.values(byProduct).sort((a,b)=>b.profit-a.profit);
+    const allItems=Object.values(byProduct).sort((a,b)=>b.profit-a.profit);
+    const list = prodCompCollapsed ? allItems.slice(0,10) : allItems;
     const body=document.getElementById('prodCompBody');
-    if(!list.length){body.innerHTML='<tr class="empty-row"><td colspan="9">No completed sales yet.</td></tr>';return;}
-    // Inventory turnover: units sold / avg stock on hand
+    const countEl=document.getElementById('prodCompCount');
+    const btn=document.getElementById('prodCollapseBtn');
+    if(countEl) countEl.textContent=list.length+' of '+allItems.length+' products shown';
+    if(btn) btn.textContent = prodCompCollapsed ? '\u229e Show all '+allItems.length : '\u229f Show top 10';
+    if(!allItems.length){body.innerHTML='<tr class="empty-row"><td colspan="8">No completed sales yet.</td></tr>';return;}
     body.innerHTML=list.map((p,i)=>{
       const avgSell=p.prices.length?p.prices.reduce((a,v)=>a+v,0)/p.prices.length:0;
       const avgCost=p.units>0?p.totalCost/p.units:0;
       const margin=p.revenue>0?(p.profit/p.revenue*100):0;
       const stockItem=inventory.find(inv=>inv.name.toLowerCase()===p.item.toLowerCase());
-      const turnover=stockItem&&stockItem.quantity>0?(p.units/stockItem.quantity).toFixed(1)+'×':'—';
+      const turnover=stockItem&&stockItem.quantity>0?(p.units/stockItem.quantity).toFixed(1)+'x':'--';
       const marginColor=margin>=30?'var(--green)':margin>=15?'#f9a825':'var(--red)';
-      return `<tr>
-        <td style="color:var(--muted);font-weight:700;">${i+1}</td>
-        <td><strong>${escapeHtml(p.item)}</strong></td>
-        <td class="mono">${p.units}</td>
-        <td class="mono">${fmtKES(p.revenue)}</td>
-        <td class="mono">${avgSell?fmtKES(avgSell):'—'}</td>
-        <td class="mono">${avgCost?fmtKES(avgCost):'—'}</td>
-        <td class="mono" style="font-weight:700;color:${marginColor};">${margin.toFixed(1)}%</td>
-        <td class="mono ${p.profit>=0?'profit-pos':'profit-neg'}">${fmtKES(p.profit)}</td>
-        <td class="mono" style="color:var(--muted);">${turnover}</td>
-      </tr>`;
+      return '<tr>' +
+        '<td style="position:sticky;left:0;background:#fff;z-index:1;min-width:260px;max-width:290px;white-space:normal;line-height:1.4;box-shadow:2px 0 6px rgba(0,0,0,0.04);">' +
+        '<span style="color:var(--muted);font-weight:700;margin-right:8px;">'+(i+1)+'</span>' +
+        '<strong>'+escapeHtml(p.item)+'</strong></td>' +
+        '<td class="mono">'+p.units+'</td>' +
+        '<td class="mono">'+fmtKES(p.revenue)+'</td>' +
+        '<td class="mono">'+(avgSell?fmtKES(avgSell):'--')+'</td>' +
+        '<td class="mono">'+(avgCost?fmtKES(avgCost):'--')+'</td>' +
+        '<td class="mono" style="font-weight:800;color:'+marginColor+';">'+margin.toFixed(1)+'%</td>' +
+        '<td class="mono '+(p.profit>=0?'profit-pos':'profit-neg')+'">'+fmtKES(p.profit)+'</td>' +
+        '<td class="mono" style="color:var(--muted);">'+turnover+'</td>' +
+        '</tr>';
     }).join('');
   }
 
@@ -2869,6 +2892,8 @@
   let leafletMap = null;
   const geocodeCache = {};
   const NAIROBI = [-1.2921, 36.8219];
+  // Store location — Diodori, Lagiri Rd (exact pin from Google Maps)
+  const STORE_LOCATION = [-1.3018544, 36.780168];
   const platMapColors = {Glovo:'#ff6b2b', Kilimall:'#e60000', Offline:'#6c47ff'};
 
   function getStoredGeo(key){
@@ -2904,12 +2929,21 @@
       return;
     }
     if(!leafletMap){
-      leafletMap = L.map('orderMap').setView(NAIROBI, 11);
+      leafletMap = L.map('orderMap').setView(STORE_LOCATION, 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
         attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>',maxZoom:18
       }).addTo(leafletMap);
     }
-    leafletMap.eachLayer(l=>{ if(l instanceof L.CircleMarker||l instanceof L.Marker) leafletMap.removeLayer(l); });
+    leafletMap.eachLayer(l=>{ if(l instanceof L.CircleMarker||l instanceof L.Marker||l instanceof L.Polyline) leafletMap.removeLayer(l); });
+
+    // Add store marker (hub)
+    const storeIcon = L.divIcon({
+      html:`<div style="width:34px;height:34px;background:var(--dark);border:3px solid var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 10px rgba(0,0,0,0.4);">🏪</div>`,
+      iconSize:[34,34], iconAnchor:[17,17], className:''
+    });
+    L.marker(STORE_LOCATION, {icon:storeIcon, zIndexOffset:1000})
+      .addTo(leafletMap)
+      .bindPopup('<strong>Elfancy Vapes</strong><br>Diodori, Lagiri Rd<br>Nairobi · <a href="https://maps.app.goo.gl/c8v87bDC8aWVYmcc9" target="_blank">Open in Maps</a>');
 
     // Apply filters
     const riderFilter = (document.getElementById('mapRiderFilter').value||'').trim().toLowerCase();
@@ -2965,7 +2999,13 @@
       if(!coords) continue;
       const jitter=()=>(Math.random()-0.5)*0.003;
       const color=platMapColors[s.platform||'Glovo']||'#888';
-      const marker=L.circleMarker([coords.lat+jitter(),coords.lng+jitter()],{
+      const deliveryPt = [coords.lat+jitter(), coords.lng+jitter()];
+
+      // Draw spoke line from store to delivery point
+      L.polyline([STORE_LOCATION, deliveryPt], {
+        color:color, weight:1.5, opacity:0.35, dashArray:'4,6'
+      }).addTo(leafletMap);
+      const marker=L.circleMarker(deliveryPt,{
         radius:riderFilter?10:8,fillColor:color,color:'#fff',weight:2,fillOpacity:0.88
       }).addTo(leafletMap);
       marker.bindPopup(`<div style="font-size:12px;min-width:190px;font-family:Montserrat,sans-serif;">
@@ -3128,6 +3168,11 @@
   });
 
   // Settings modal
+  document.getElementById('prodCollapseBtn').addEventListener('click', ()=>{
+    prodCompCollapsed = !prodCompCollapsed;
+    renderProductComparison();
+  });
+
   document.getElementById('refreshMapBtn').addEventListener('click', renderOrderMap);
   document.getElementById('mapRiderFilter').addEventListener('change', renderOrderMap);
   document.getElementById('mapDateFrom').addEventListener('change', renderOrderMap);
