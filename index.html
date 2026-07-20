@@ -217,10 +217,81 @@
   .add-user-row button{background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 14px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;}
 
   /* ===== Responsive ===== */
+  /* ===== Section tab navigation ===== */
+  .section-tabs{
+    background:var(--dark);border-bottom:1px solid rgba(255,255,255,0.08);
+    display:flex;align-items:center;gap:2px;padding:0 20px;
+    position:sticky;top:57px;z-index:40;overflow-x:auto;scrollbar-width:none;
+  }
+  .section-tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{
+    padding:14px 18px;font-size:12.5px;font-weight:700;color:#7a7d9a;
+    border:none;background:transparent;cursor:pointer;font-family:inherit;
+    border-bottom:3px solid transparent;white-space:nowrap;transition:.18s;
+    display:flex;align-items:center;gap:7px;letter-spacing:0.1px;
+  }
+  .tab-btn:hover{color:#fff;}
+  .tab-btn.active{color:#fff;border-bottom-color:var(--yellow);}
+  .tab-btn .tab-badge{
+    font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;
+    background:var(--red);color:#fff;
+  }
+  .dashboard-section{display:none;}
+  .dashboard-section.active{display:block;}
+
+  /* ===== Notification bell ===== */
+  .notif-btn{
+    position:relative;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+    color:#fff;border-radius:10px;padding:8px 12px;font-size:16px;cursor:pointer;transition:.2s;
+    display:flex;align-items:center;
+  }
+  .notif-btn:hover{background:rgba(255,255,255,0.14);}
+  .notif-count{
+    position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;
+    font-size:9px;font-weight:800;border-radius:999px;min-width:16px;height:16px;
+    display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--dark);
+  }
+  /* Notification panel */
+  .notif-panel{
+    position:absolute;top:calc(100% + 10px);right:0;width:320px;background:#fff;
+    border-radius:16px;box-shadow:var(--shadow-lg);z-index:200;padding:16px;
+    border:1.5px solid var(--line);display:none;
+  }
+  .notif-panel.show{display:block;}
+  .notif-panel h4{margin:0 0 12px;font-size:13px;font-weight:800;}
+  .notif-item{
+    padding:9px 12px;border-radius:10px;font-size:12.5px;margin-bottom:6px;
+    display:flex;align-items:flex-start;gap:10px;line-height:1.4;
+  }
+  .notif-item.warn{background:#fff8e1;color:#8a6d00;}
+  .notif-item.danger{background:var(--red-dim);color:var(--red);}
+  .notif-item.info{background:var(--green-dim);color:var(--green);}
+  .notif-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+
+  /* ===== Growth indicators on KPIs ===== */
+  .kpi-growth{font-size:11px;font-weight:700;margin-top:4px;display:flex;align-items:center;gap:4px;}
+  .kpi-growth.up{color:var(--green);}
+  .kpi-growth.down{color:var(--red);}
+  .kpi-growth.flat{color:var(--muted);}
+
+  /* ===== Record badge ===== */
+  .record-badge{
+    display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,var(--yellow),#ffdf00);
+    color:var(--dark);font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;
+    animation:pulseGold 2s ease-in-out infinite;
+  }
+  @keyframes pulseGold{0%,100%{box-shadow:0 0 0 0 rgba(242,204,56,0.5);}50%{box-shadow:0 0 0 6px rgba(242,204,56,0);}}
+
+  /* ===== Dead stock badge ===== */
+  .dead-stock{background:#f1efe9;color:var(--muted);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;}
+
+  /* ===== WhatsApp button ===== */
+  .wa-btn{background:#25D366;color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;}
+  .wa-btn:hover{background:#20bb5a;}
+
   @media(max-width:880px){
-    .kpis{grid-template-columns:repeat(2,1fr);}
-    .grid2{grid-template-columns:1fr;}
-    .topbar-actions{gap:5px;}
+    .section-tabs{top:50px;padding:0 8px;}
+    .tab-btn{padding:12px 12px;font-size:11.5px;}
   }
 </style>
 </head>
@@ -258,18 +329,37 @@
   <div class="topbar-actions">
     <div class="auto-sync-pill" id="autoSyncPill" style="display:none;"><span id="autoSyncText">Syncing…</span></div>
     <div class="sync-pill sync-off" id="syncPill"><span class="dot"></span><span id="syncPillText">Sheet not linked</span></div>
+    <div style="position:relative;">
+      <button class="notif-btn" id="notifBtn" title="Alerts">🔔<span class="notif-count" id="notifCount" style="display:none;">0</span></button>
+      <div class="notif-panel" id="notifPanel">
+        <h4>Alerts &amp; notifications</h4>
+        <div id="notifItems"><div style="font-size:12.5px;color:var(--muted);">All clear — no alerts.</div></div>
+      </div>
+    </div>
     <div class="user-chip" id="userChip" style="display:none;" title="Click to sign out">
       <div class="avatar" id="userAvatar">?</div>
       <span id="userName">—</span>
     </div>
-    <button class="icon-btn" id="csvUploadBtn">⬆ Import CSV</button>
+    <button class="icon-btn" id="csvUploadBtn">⬆ Import</button>
     <button class="icon-btn" id="exportBtn">⬇ CSV</button>
-    <button class="icon-btn" id="settingsBtn">⚙ Sheet sync</button>
+    <button class="icon-btn" id="settingsBtn">⚙ Settings</button>
   </div>
 </header>
 
+<!-- Section tab navigation -->
+<nav class="section-tabs" id="sectionTabs" style="display:none;">
+  <button class="tab-btn active" data-tab="overview">📊 Overview</button>
+  <button class="tab-btn" data-tab="sales">💰 Sales</button>
+  <button class="tab-btn" data-tab="stock">📦 Inventory</button>
+  <button class="tab-btn" data-tab="customers">👥 Customers</button>
+  <button class="tab-btn" data-tab="operations">🗺 Operations</button>
+  <button class="tab-btn" data-tab="analytics">📈 Analytics</button>
+  <button class="tab-btn" data-tab="returns">↩ Returns</button>
+</nav>
+
 <div class="wrap">
 
+<div class="dashboard-section active" id="sec-overview">
   <!-- Filter bar -->
   <div class="filterbar">
     <button class="pill active" data-range="today">Today</button>
@@ -288,6 +378,12 @@
       <button class="pill" data-platform="Glovo" style="border-color:#ff6b2b;color:#ff6b2b;display:flex;align-items:center;gap:5px;padding:6px 12px;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAFW0lEQVR42u2ZW4hVZRTHf+v79j630aOOM6ZipXntBj4kkvQSRBREF4PqqRJCqMAe6iGshx6MHkQDu9dDQuBL0IUK6i0MCqPCSIimUnQ0U8dxZpyZc9l7f6uH/Z05W0tw5pxjMzAf7Idz9tmb9V/ff/2/9V9HVFWZwcsww9csgFkAswBm+Ara+zoHDVUWAQTQ5ncISHtzJm05B9RlAr6c3ycgdjoAUH+lWXXVYySjP+HG+3D1k+DqIBYJF2KLK7Fz1mO6bswAdS2zOGgt+DTrycgB6qf2EZ//AY2HU8qIbVIIByhiitjSWsLeBwl770+DV9cSraa4A2nmNBmj1r+T6MwnqDrElkCyOWkAaFJNXRVcjaC8gcLyFzHFVS2BmAKANPManaXy+zPE539Ewu402EYgqqCR57pJQYlN7/tC1ngECcqUVr+KnXvLlEFMEoDnvIsY73uSeOQAEixMg/V00uQ8IhbJLUp3xNVx0QCajCF2DmCBBCREXQVjS5TW7cUUr5tSTUwOgM9S/cSbVI/vQcJFmeAduCph952EvZsxpXVNALV+osGvqJ/+EFwNJN8EEQ8TlDdQWvuu3wHpFIAGdU4xdugh1NV8tvzjGlG4djth7+ZLV87YIcb/eBaNBkHC9FmxaDxMac0egvm3T1pizaSyD8TnvsZFA75YfQDJKPklW9LgNU6DmJBYr0IaYbpuorhih6fKhSs6+2Wm8DvSSqQvTsYOZR4TcBEm7CFc9EgamJiMhDYuk2ZcE2x5A0F5I+rGfME7xORwlT7QuqeRdgCANJgylKGOoFrH5Jd6JTKX8UpNC9bFmWwbNKmgSaWDzVwjKSbIfFAEgybjvpj1MrIn6e/lQqqIGGQK7YVhkghMfqnnsD+kbB5XPUoy+kvzLLjU82LAVUhGvkdMceJcUI2RsAdsKXPCd6idDsqbEOyFGUWp9e8GV7k0h32wteN7SKpHweQ9KAGtp4dZo7XoyA74wGx5A7brBjTJFKHtIh79meqRlzK7oP/qPqNT+6j9/QESlL1SCWiC2LmEPfdm2vBOqZAqSI781dvSg2jiDEiQYD71gc+onXgt0zY0g4+H9lM9thOx5YxnsGg8RH7xY5jCcv+M6RQAJjJuy7dSWLYtVaRG4WmChAuonXiH6MxHHkTaTrvx36gc3u4PL39qS4DG5wi77yC3dGvGU3TaUooBTcgteYLcVQ+j0blmB6qK2LlUj75MMvwtSA6tn6by53Op8picbyECNBnFltZSWLEjBTsZQ9R6O92wiQmVvqeJhr9DgvleSi1oDbFliqt3Uf/rPaKh/f5+7O/XEdtF6fq9KXVaMDYtODLvCeJBxn/dQlLtT5s3jb2axJ5GcbPvmfDIEaU1b2DLG1u2ly34Oa9AQTfFVbswtiu1kFgvj55WE8GnCqPJeQrLX2hL8K2PVXw9mOIqiitf8RRyFzmxRvABGp0jv3QrYc8DbTP2rc84xKZN2rzbKFz7PJqMNBs6Mf7KofEguZ57yC/b1nRq02asktH7Wv9uaifeBlPIdKwVgnmbKK59C8l+P60ANJRJDNHAx8RD30y4NVtaR7j4UW8ptW3BtxnAxeOWyd6bFqNF7xHiYeKzX+CqR5Cwl6D7Lkzhmo7MRttLIUCjQcb7niIZPQiSS1Uq10txzevYrptbHmR1bjrt2+Vo4FOS0YNIbjESzENyvbj6ANHJ92fKeF3/24XRVvHpAADvF8Ke+wjmrEfrp9B4GK2fweQWkFv8+KXxTR8V8kWcjBKf/RxXOZwW8cK7MfllHVGhKyij7Q++AzKamUhnve0URob/4w5c2TX7L+UsgFkAM3z9AxtCi3mh7aBTAAAAAElFTkSuQmCC" style="width:16px;height:16px;object-fit:contain;"> Glovo</button>
       <button class="pill" data-platform="Kilimall" style="border-color:#e60000;color:#e60000;display:flex;align-items:center;gap:5px;padding:6px 12px;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAH0ElEQVR42s2aa4xVVxXHf2vvc+57GKAzDAMKTSsdCuWREioIVnwkFsQ2JsYPloh+qTHaEJKGGmjGQpuSSIytWgSaKqXaWOkw0A82fvGRaKJJP1RMfNS2IjbOwDBw58GdmXvv2csP5z5nmJl7Z+4UdnKSc+/eZ5+19lr//15r7SOqqoxvqqCKqiLcvFYUTETAmBuOkSoFVME5sJZbsjk3QZGyAqog4Xq7wUHG/vUu7voQIqawGuEwQQp3RevIJH0yxXPl+3LfxHGF5cdvayOyYsUNlfAqhddclvSxowx1nyV3+RrO5UvzGAUVBZXQpDhQUBFEASlMg4A4UKHS/4p9Kg6p6tNQpcL8Mu45jEDUJ9ZxN7c9+iixj22uUkLUOUUVzeXo3buH4Td+jZ2/APE8VCoWYgo/ndAnUriKpgdVV98cVZBUNJMBVdqOfJfUzp0lJcTl8yrWcvX5o1w5cgS/fSmaGwuXrN5mTCh4Lodms2jgQEA8D4lGw/4gmJn/W4tms1jP50NnuvCWfRicw4i1uOvDDHe9htc8f+bCW4uOjuLSaSQeJ7rmHlLb7ie5ZTOR5cvRbBaXTpcVrbcFARKNkk9fY+hMV8kyHkD+wgXyV/ogGgM3M+FdOk1kxQqad+0ief/H8RYvLrGZZjKMvf02Q2fPMdTdHdJzLFa/NZxDfJ/Rv/21RK8egBsbQ4MCAKlTAWNxA2nmfemLtDz+bUxT00SuTiSIrV9PbP16Up/bQd/+/eR7eiEeD325niaCjuVL9yELiQnZoV7hrUXTaebvepiWzs7S3/n332fkD38k+9+LSCxBdM1qElu2IL5PfONGlrz4Ij1f+SrZq1eRiF+Xy4Yjx9NokQe0DgsYg7t+ndj69bQc2I8GAWIt6ZMvce3oMYKr/eGUgIgltvYeWp86SPTuVXjLlnHb04foeeTrEI3MAHPl8aaKJEWnZhhrS5d4FlFY+K1vgvUQaxk49TOuPPUMqgFmUSu2pQWvpRXbspDRv/+Dnke+Qf4/FwFIbN1K8pOfQjMZJBJBrC1dxQ21lubV7HeZDJrNln+PjBJduZL45k2gSu7dd7jy9CGwihscQF0l7yvqR8i+80/6Ht/H4pdfRjyP1IM7GejuwsvncQUsCCCpJGK9mizj3cgsE0EzRmLTJhJbt4RANwbNjuHfcQfiR0oM0frYY5CII4ErzyhVURmiio6OIk1NxD96H4sPHy4PMUKQTjN4+gzB4ADiTa9EhQJyQ+FxDhOP03r4GbxFiyadyL+rA/+ujvo4YP4CmnfvnvhaY+n//rOYhQvRaajWq1r9G4HYOSQWRzw/nKwi6KsKc4uRbC3hQjHaVS25mkKJCKS5uV4MSHhNQkKqDtSFAKtQYIK1pgjDZRL3lMIzxX6xtq4NrkyoKlMzqHyAqU0d7yorIMHUNHozUrG6FJht8qgaYmSq0CAIanOPOkSZHsR1mF2mSkVV5yRVNRNAPIOVB8j39zPwk58ydv581f/FAgEiDHV3k/n976r7Z+lCXs0gnirRtpb+HzxH+kdHSWy4l6XdZzDJVNmdjKH/0CHSJ08hEZ+lp39JdM2aGybpM3ShChDrzBjDXUtjW1tx2Sw6MgrJVEn4vs7vMPjqq8j8Zkw8jpk3r2Kbnl3zGgViYywuyKPGlFdehMv7DzDYdRqTSEE0wuLnf4i/fPnkqz8zF5o9iFU1ZGF1mGQSVLm0bx/XX38dE09h4jHajx8jumbt1MLPygKzIKFS3OYge/Ei6ZdOMXTuHCYSwzQlaD9+guiqVaVwocE0KjMH8bgMTUZG+d/ur+FGMthkE3bpEtq+d4Rox8owMW8wlTZsJy4+qc4RXLuKxOMEYyPE1q0j2rESzedrd5ubshOLIhpANELzw19GohHEjzB4povLBw+VY/ta0kepW4FKEM/c/51TxPdpffJJ2p97FhONYGJxBn/+Cn2dB6tD74a70Ex34nFqqAi53l5i926g/diPkWgEk0ww8ItXuLz/ifLe0aCd2DQMxGIQE17G98G5UIkTx5F4HJNMMtj1Gpee6Axz6wZZoXHh9FgWMiOQyYQrbAyayxFbu44lL5zANiUR32fg1ElG//JWoU7qGoWB2YO46fM7idx+O8kdOzDNzaAhHggCoqtX0/7CC/h33sm87Q8Q/ciK0AJGboGduADM5PbtJD79mbDSNm5vwDkiHStZdra74Zld40CsOnmZsBgfFYWfzv9lLkA87Utl8oS/qIRqbTlvHQCvLZwWA54388OJWqt/QYCIhNhpSDhdSAN1eIigtwfbsXJOc3kTCat8uX9fqDns8MruH0zuGrkcvXv2El23bk7LK2IMweAAo3/6MyaVmrwqJ+MU8NoWY+MpnAsAW81EqhCJkOvpIfvee3NfUjEmzCcmK57l83jtbaXA0cM5vPZ2/A0byfz2N3gL5qO5/ESG8f3woG7Oa0KTlyhFBFUl9dkHJtJo6949+E1NuOHrYeRoLdiKM4EGZVA15dgV5xAUzwysJd97ieaHHiTxiW1hzdbawkl9IcUbefNN+vYfCF3F2oLGt0ClzgWI9Uh94SEWdXaGB4TFWlTpU4OCEjo8zNAbv2LsrfMwPIybLnKcO1NQ/JzBLl1Kcts2YvdtLLtZsUJe9bFHA5PtOcPHuI1QJnxuU1Gz/0Ar0tNVPCb55Ob/WKBXM2P5iMUAAAAASUVORK5CYII=" style="width:16px;height:16px;object-fit:contain;"> Kilimall</button>
       <button class="pill" data-platform="Offline" style="border-color:#6c47ff;color:#6c47ff;display:flex;align-items:center;gap:5px;padding:6px 12px;"><img src="data:image/png;base64,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" style="width:16px;height:16px;object-fit:contain;"> Offline</button>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;" id="branchFilterRow">
+      <span style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Branch:</span>
+      <button class="pill active" data-branch="all">All</button>
+      <button class="pill" data-branch="Nairobi" style="border-color:#00A082;color:#00A082;">🏙 Nairobi</button>
+      <button class="pill" data-branch="Thika Town" style="border-color:#6c47ff;color:#6c47ff;">🏘 Thika Town</button>
     </div>
     <button class="ghost-btn" id="syncAllBtn">↻ Sync pending</button>
   </div>
@@ -342,6 +438,26 @@
       <div class="label" style="display:flex;align-items:center;gap:6px;"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;" title="Offline"> Profit</div>
       <div class="value mono" id="kpiOfflineProfit" style="font-size:18px;">KES 0</div>
       <div class="sub" id="kpiOfflineOrders">0 orders</div>
+    </div>
+  </div>
+
+  <!-- Branch breakdown row -->
+  <div class="kpis" id="branchKpiRow" style="grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;margin-top:-8px;display:none;">
+    <div class="kpi" style="border-top:3px solid var(--green);">
+      <div class="label" style="display:flex;align-items:center;gap:6px;"><span style="background:var(--green);color:#fff;font-size:9px;font-weight:800;padding:2px 8px;border-radius:999px;">NAIROBI</span> Performance</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;">
+        <div><div style="font-size:9px;text-transform:uppercase;font-weight:700;color:var(--muted);">Revenue</div><div class="mono" id="brNairobiRevenue" style="font-size:14px;font-weight:800;">KES 0</div></div>
+        <div><div style="font-size:9px;text-transform:uppercase;font-weight:700;color:var(--muted);">Profit</div><div class="mono" id="brNairobiProfit" style="font-size:14px;font-weight:800;color:var(--green);">KES 0</div></div>
+        <div><div style="font-size:9px;text-transform:uppercase;font-weight:700;color:var(--muted);">Orders</div><div class="mono" id="brNairobiOrders" style="font-size:14px;font-weight:800;">0</div></div>
+      </div>
+    </div>
+    <div class="kpi" style="border-top:3px solid var(--blue);">
+      <div class="label" style="display:flex;align-items:center;gap:6px;"><span style="background:var(--blue);color:#fff;font-size:9px;font-weight:800;padding:2px 8px;border-radius:999px;">THIKA TOWN</span> Performance</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;">
+        <div><div style="font-size:9px;text-transform:uppercase;font-weight:700;color:var(--muted);">Revenue</div><div class="mono" id="brThikaRevenue" style="font-size:14px;font-weight:800;">KES 0</div></div>
+        <div><div style="font-size:9px;text-transform:uppercase;font-weight:700;color:var(--muted);">Profit</div><div class="mono" id="brThikaProfit" style="font-size:14px;font-weight:800;color:var(--blue);">KES 0</div></div>
+        <div><div style="font-size:9px;text-transform:uppercase;font-weight:700;color:var(--muted);">Orders</div><div class="mono" id="brThikaOrders" style="font-size:14px;font-weight:800;">0</div></div>
+      </div>
     </div>
   </div>
 
@@ -422,6 +538,15 @@
     <!-- Add sale form -->
     <div class="panel">
       <h2>Log a sale</h2>
+      <!-- Branch selector -->
+      <div class="field" style="margin-bottom:10px;">
+        <label>Branch</label>
+        <div class="seg" id="branchSeg">
+          <button type="button" class="on" data-branch="Nairobi">🏙 Nairobi</button>
+          <button type="button" data-branch="Thika Town">🏘 Thika Town</button>
+        </div>
+      </div>
+
       <!-- Platform selector -->
       <div class="field" style="margin-bottom:12px;">
         <label>Platform</label>
@@ -472,54 +597,12 @@
           <label>Customer phone</label>
           <input type="tel" id="f_phone" placeholder="+254 7XX XXX XXX (optional)">
         </div>
-        <div class="field">
+        <div class="field" style="position:relative;">
           <label>Delivery location / area</label>
-          <input type="text" id="f_location" list="locationList" placeholder="Type area name…" oninput="suggestDeliveryFee(this.value)">
+          <input type="text" id="f_location" placeholder="Type to search — Westlands, Karen, estate name…" autocomplete="off"
+            oninput="handleLocationInput(this.value)" onkeydown="handleLocationKey(event)" onfocus="handleLocationInput(this.value)">
+          <div id="locationDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--green);border-radius:10px;box-shadow:var(--shadow);z-index:200;max-height:220px;overflow-y:auto;"></div>
           <div id="deliveryFeeHint" style="display:none;margin-top:5px;font-size:11.5px;padding:6px 10px;background:var(--green-dim);border-radius:7px;color:var(--green);font-weight:700;"></div>
-          <datalist id="locationList">
-            <!-- Zone 1: Very close 0-5km from Diodori/Langata (KES 100-150) -->
-            <option value="Langata"><option value="Karen"><option value="South C"><option value="South B">
-            <option value="Rongai / Ongata Rongai"><option value="Nyayo Estate"><option value="Nairobi West">
-            <option value="Mugumoini"><option value="Ngong Road"><option value="Madaraka">
-            <option value="Bomas of Kenya Area"><option value="Galleria Area">
-            <!-- Zone 2: Near 5-10km (KES 150-200) -->
-            <option value="Kibera"><option value="Hurlingham"><option value="Kilimani">
-            <option value="Adams Arcade"><option value="Dagoretti"><option value="Waithaka">
-            <option value="Uthiru"><option value="Woodley"><option value="Ng'ando">
-            <option value="Riruta"><option value="Olympic"><option value="Lindi">
-            <option value="Mutuini"><option value="Siaya Road"><option value="Kawangware">
-            <!-- Zone 3: Medium 10-15km (KES 200-250) -->
-            <option value="CBD / City Centre"><option value="Westlands"><option value="Lavington">
-            <option value="Kileleshwa"><option value="Upper Hill"><option value="Industrial Area">
-            <option value="Haile Selassie"><option value="Muthangari"><option value="Highridge">
-            <option value="Hurlingham"><option value="Parklands"><option value="Spring Valley">
-            <option value="Loresho"><option value="Mountain View"><option value="Kabete">
-            <option value="Ngara"><option value="Starehe"><option value="Pumwani">
-            <option value="Shauri Moyo"><option value="Ziwani"><option value="Pangani">
-            <option value="Eastleigh"><option value="Majengo"><option value="Makadara">
-            <option value="Donholm"><option value="Buruburu"><option value="Jericho">
-            <!-- Zone 4: Far 15-20km (KES 250-300) -->
-            <option value="Muthaiga"><option value="Runda"><option value="Gigiri">
-            <option value="Spring Valley"><option value="Kyuna"><option value="Kitisuru">
-            <option value="Loresho"><option value="Nyari"><option value="Thome">
-            <option value="Kasarani"><option value="Ruaraka"><option value="Lucky Summer">
-            <option value="Embakasi"><option value="Fedha"><option value="Tassia">
-            <option value="Umoja"><option value="Kayole"><option value="Komarock">
-            <option value="Pipeline"><option value="Mihang'o"><option value="Utawala">
-            <option value="Syokimau"><option value="Mombasa Road"><option value="South Airport Area">
-            <option value="Mlolongo"><option value="Athi River">
-            <!-- Zone 5: Very far 20km+ (KES 300-400) -->
-            <option value="Roysambu"><option value="Zimmerman"><option value="Githurai">
-            <option value="Kahawa West"><option value="Kahawa Sukari"><option value="Kahawa">
-            <option value="Marurui"><option value="Mwiki"><option value="Ruai">
-            <option value="Njiru"><option value="Dandora"><option value="Huruma">
-            <option value="Mathare"><option value="Baba Dogo"><option value="California">
-            <option value="Makongeni"><option value="Ofafa"><option value="Sarang'ombe">
-            <option value="Thika Road"><option value="Ruiru"><option value="Ruaka">
-            <option value="Thindigua"><option value="Kiambu Road"><option value="Karura">
-            <option value="Kiambu Town"><option value="Ngong"><option value="Kikuyu">
-            <option value="Limuru"><option value="Rongai (far)"><option value="Kitengela">
-          </datalist>
         </div>
       </div>
       <div style="font-size:11.5px;color:var(--muted);margin:-4px 0 12px;line-height:1.5;">
@@ -605,6 +688,9 @@
     </div>
   </div>
 
+
+</div>
+<div class="dashboard-section" id="sec-sales">
   <!-- Ledger table -->
   <div class="panel">
     <h2>Order detail <span class="hint" id="ledgerCount">0 entries</span></h2>
@@ -622,6 +708,9 @@
     </div>
   </div>
 
+
+</div>
+<div class="dashboard-section" id="sec-operations">
   <!-- ===== ORDER LOCATIONS MAP ===== -->
   <div class="panel" style="margin-top:18px;">
     <h2 style="display:flex;align-items:center;justify-content:space-between;">
@@ -657,6 +746,9 @@
     </div>
   </div>
 
+
+</div>
+<div class="dashboard-section" id="sec-analytics">
   <!-- ===== TOOLS ROW: Daily Summary + Commission Calculator ===== -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;">
 
@@ -846,6 +938,9 @@
     </div>
   </div>
 
+
+</div>
+<div class="dashboard-section" id="sec-returns">
   <!-- Returns & Refunds section -->
   <div class="panel" style="margin-top:18px;">
     <h2 style="display:flex;align-items:center;justify-content:space-between;">
@@ -1008,6 +1103,9 @@
     </div>
   </div>
 
+
+</div>
+<div class="dashboard-section" id="sec-stock">
   <!-- ===== STOCK INVENTORY ===== -->
   <div class="panel" style="margin-top:18px;">
     <h2 style="display:flex;align-items:center;justify-content:space-between;">
@@ -1104,7 +1202,7 @@
         <thead>
           <tr>
             <th></th><th>Product</th><th>In stock</th><th>Low stock at</th>
-            <th>Cost / unit</th><th>Stock value</th><th>Status</th><th>Adjust</th><th></th>
+            <th>Cost / unit</th><th>Stock value</th><th>Days left</th><th>Status</th><th>Adjust</th><th></th>
           </tr>
         </thead>
         <tbody id="stockBody"></tbody>
@@ -1112,6 +1210,9 @@
     </div>
   </div>
 
+
+</div>
+<div class="dashboard-section" id="sec-customers">
   <!-- ===== CUSTOMER DATABASE ===== -->
   <div class="panel" style="margin-top:18px;">
     <h2 style="display:flex;align-items:center;justify-content:space-between;">
@@ -1235,6 +1336,9 @@
     <button class="ghost-btn" id="syncAllModalBtn" style="width:100%;">↻ Push unsynced sales now</button>
     <div style="height:8px;"></div>
     <button class="ghost-btn" id="forcePushAllBtn" style="width:100%;border-color:var(--green);color:var(--green);font-weight:700;">🔄 Force push ALL data to Sheet</button>
+    <div style="height:8px;"></div>
+    <button class="ghost-btn" id="tagNairobiBtn" style="width:100%;">📍 Tag all untagged sales as Nairobi branch</button>
+    <p class="desc" style="margin:4px 0 8px;font-size:11.5px;">Use this once to stamp all your existing Nairobi sales with the Nairobi branch — then force push to update the Sheet.</p>
     <p class="desc" style="margin:4px 0 8px;font-size:11.5px;">Pushes every sale, expense, return, stock item and rider from this device to the Sheet — safe to run on a new device to populate the Sheet for the first time.</p>
     <div style="height:8px;"></div>
     <button class="ghost-btn" id="pullSheetBtn" style="width:100%;">⬇ Pull all data from Sheet (sales, expenses, stock, riders, returns)</button>
@@ -1273,7 +1377,19 @@
     <div class="status-line" id="riderStatus"></div>
 
     <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
-    <h3 style="font-size:14px;margin:0 0 4px;">Break-even target</h3>
+    <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
+    <h3 style="font-size:14px;margin:0 0 4px;">Branches</h3>
+    <p class="desc" style="margin:0 0 10px;">Add your store branches. Each branch has its own store location used on the map. All existing data defaults to Nairobi.</p>
+    <div id="branchList" style="margin-bottom:8px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:7px;margin-top:8px;">
+      <input type="text" id="newBranchName" placeholder="Branch name e.g. Thika Town" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;font-family:inherit;font-size:12.5px;">
+      <input type="text" id="newBranchCoords" placeholder="lat,lng e.g. -1.033,37.069" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;font-family:inherit;font-size:12.5px;">
+      <button id="addBranchBtn" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 14px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;">+ Add</button>
+    </div>
+    <div class="status-line" id="branchStatus"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">To get lat,lng: open Google Maps, right-click your store → copy coordinates</div>
+
+    <h3 style="font-size:14px;margin:16px 0 4px;">Break-even target</h3>
     <p class="desc" style="margin:0 0 10px;">Set your total monthly fixed costs — the dashboard will calculate how many orders you need per day to cover them.</p>
     <div class="field">
       <label>Monthly fixed costs (KES)</label>
@@ -1318,12 +1434,18 @@
   let inventory = [];
   let expenses = [];
   let riders = [];
+  let branches = [
+    { id:'NBR', name:'Nairobi', storeCoords:[-1.3018544, 36.780168], storeLabel:'Diodori, Lagiri Rd', color:'#00A082' },
+    { id:'THK', name:'Thika Town', storeCoords:[-1.0332, 37.0693], storeLabel:'Thika Town Centre', color:'#3b6ef5' }
+  ];
   let customerBook = {};
   let settings = { webhookUrl: '', breakEvenMonthly: 0 };
   let users = [{ id:'USR-001', name: 'Kush', pin: '1234', role: 'admin' }];
   let currentUser = null;
   let currentRange = 'today';
   let currentPlatform = 'all';
+  let currentBranch = 'all';
+  let formBranch = 'Nairobi';
   let chart = null;
 
   const fmtKES = n => 'KES ' + Math.round(n).toLocaleString('en-KE');
@@ -1368,10 +1490,18 @@
       const r8 = await appStorage.get('elfancy-riders', false);
       riders = r8 && r8.value ? JSON.parse(r8.value) : [];
     }catch(e){ riders = []; }
+    try{
+      const r9 = await appStorage.get('elfancy-branches', false);
+      if(r9 && r9.value){ branches = JSON.parse(r9.value); }
+    }catch(e){ /* keep default branches */ }
   }
   async function saveSales(){
     try{ await appStorage.set('elfancy-sales', JSON.stringify(sales), false); }
     catch(e){ console.error('save sales failed', e); }
+  }
+  async function saveBranches(){
+    try{ await appStorage.set('elfancy-branches', JSON.stringify(branches), false); }
+    catch(e){ console.error('save branches failed', e); }
   }
   async function saveReturns(){
     try{ await appStorage.set('elfancy-returns', JSON.stringify(returns), false); }
@@ -1472,40 +1602,58 @@
         statusEl.className='status-line show ok'; statusEl.textContent='Sheet is empty — no rows to import yet.'; return;
       }
       const localIds = new Set(sales.map(s=>s.id));
-      const localFingerprints = new Set(sales.map(s=>(s.orderNumber||'')+'|'+(s.item||'')+'|'+(s.date||'')+'|'+(s.revenue||0)));
-      let imported = 0;
+      const localByFp = {};
+      sales.forEach(s=>{ localByFp[(s.orderNumber||'')+'|'+(s.item||'')+'|'+(s.date||'')+'|'+(s.revenue||0)] = s; });
+      let imported = 0, updated = 0;
       j.rows.forEach(r=>{
         if(!r.item) return;
-        if(r.id && localIds.has(r.id)) return;
-        const fp = (r.orderNumber||'') + '|' + (r.item||'') + '|' + (r.date||'') + '|' + String(Number(r.revenue)||0);
-        if(localFingerprints.has(fp)) return;
+        const fp = (r.orderNumber||'')+'|'+(r.item||'')+'|'+(r.date||'')+'|'+String(Number(r.revenue)||0);
+        const sheetLocation = r.deliveryLocation||r.location||'';
+        const sheetRider = r.riderName||'';
+        const sheetPhone = r.customerPhone||'';
+
+        // Check if we already have this sale locally
+        let existing = null;
+        if(r.id) existing = sales.find(s=>s.id===r.id);
+        if(!existing) existing = localByFp[fp];
+
+        if(existing){
+          // Update fields that might have been filled in the sheet after initial import
+          let changed = false;
+          if(sheetLocation && !existing.deliveryLocation){ existing.deliveryLocation = sheetLocation; changed = true; }
+          if(sheetRider && !existing.riderName){ existing.riderName = sheetRider; changed = true; }
+          if(sheetPhone && !existing.customerPhone){ existing.customerPhone = sheetPhone; changed = true; }
+          if(changed) updated++;
+          return;
+        }
+
+        // New row — import it
         const qty = Number(r.quantity)||0;
         const revenue = Number(r.revenue)||0;
         const purchaseTotal = Number(r.purchaseTotal)||0;
         const transportCost = Number(r.transportCost)||0;
         const commissionRate = Number(r.commissionRate)||0;
-        // Calculate commission if blank
         const commission = Number(r.commission) || (revenue * (commissionRate/100));
-        // Calculate profit if blank
         const profit = Number(r.profit) || (revenue - purchaseTotal - transportCost - commission);
         const id = r.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
         localIds.add(id);
-        localFingerprints.add(fp);
+        localByFp[fp] = {id};
         sales.push({
-          id, orderNumber: r.orderNumber||'', customerName: r.customerName||'', customerPhone: r.customerPhone||'', comment: r.comment||'',
+          id, orderNumber: r.orderNumber||'', customerName: r.customerName||'', customerPhone: sheetPhone, comment: r.comment||'',
           date: r.date||todayStr(), item: r.item||'', quantity: qty, platform: r.platform||'Glovo',
-          riderName: r.riderName||'', saleTime: r.saleTime||'', deliveryLocation: r.deliveryLocation||r.location||'',
+          riderName: sheetRider, saleTime: r.saleTime||'', deliveryLocation: sheetLocation,
           sellingPrice: qty ? revenue/qty : 0, costPrice: qty ? purchaseTotal/qty : 0,
           revenue, paymentMode: r.paymentMode||'', transportCost,
           commissionRate, commission, profit, status: r.status||'Completed', reason: r.reason||'', sync:'ok'
         });
         imported++;
       });
-      if(imported>0){ await saveSales(); renderAll(); }
+      if(imported>0||updated>0){ await saveSales(); renderAll(); }
+      const parts=[];
+      if(imported>0) parts.push(imported+' new sale'+(imported!==1?'s':'')+' imported');
+      if(updated>0) parts.push(updated+' sale'+(updated!==1?'s':'')+' updated with location/rider data');
       statusEl.className='status-line show ok';
-      statusEl.textContent = imported>0
-        ? ('✓ Imported '+imported+' sale(s) from the sheet — dashboard is now up to date.')
-        : 'Already up to date — all '+j.rows.length+' sheet row(s) are already on this device.';
+      statusEl.textContent = parts.length ? '✓ '+parts.join(' · ')+'.' : 'Already up to date — all '+j.rows.length+' rows match your local data.';
     }catch(err){
       statusEl.className='status-line show fail';
       statusEl.textContent='Could not reach the sheet. (' + err.message + ')';
@@ -1553,6 +1701,10 @@
       if(start && s.date < start) return false;
       if(end && s.date > end) return false;
       if(currentPlatform !== 'all' && (s.platform||'Glovo') !== currentPlatform) return false;
+      if(currentBranch !== 'all'){
+        const isKilimall = (s.platform||'Glovo') === 'Kilimall';
+        if(!isKilimall && (s.branch||'Nairobi') !== currentBranch) return false;
+      }
       return true;
     });
   }
@@ -1929,6 +2081,8 @@
     renderExpenses();
     renderRiderPerformance();
     renderProductComparison();
+    renderBranchKPIs();
+    buildNotifications();
     // Map is rendered on demand (geocoding is async/slow) — auto-render if already initialised
     if(leafletMap) renderOrderMap();
   }
@@ -2012,7 +2166,7 @@
       entry = {
         id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
         orderNumber, customerName, customerPhone, comment, platform: formPlatform,
-        saleTime, riderName, deliveryLocation,
+        saleTime, riderName, deliveryLocation, branch: formBranch,
         date, item, quantity:qty, sellingPrice:sell, costPrice:cost,
         revenue, paymentMode:formPay, transportCost:transport,
         commissionRate:rate, commission, profit, status:'Completed', reason:'', sync:'off'
@@ -2023,7 +2177,7 @@
       entry = {
         id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
         orderNumber, customerName, customerPhone, comment, platform: formPlatform,
-        saleTime, riderName, deliveryLocation,
+        saleTime, riderName, deliveryLocation, branch: formBranch,
         date, item, quantity:0, sellingPrice:0, costPrice:0, revenue:0,
         paymentMode:'', transportCost:transport, commissionRate:0, commission:0,
         profit: -transport, status:'Cancelled', reason, sync:'off'
@@ -2083,6 +2237,7 @@
     currentUser = user;
     document.getElementById('loginBg').style.display = 'none';
     document.getElementById('userChip').style.display = 'flex';
+    document.getElementById('sectionTabs').style.display = 'flex';
     const avatarEl = document.getElementById('userAvatar');
     // Use photo for Kush, initials for everyone else
     if(user.name.toLowerCase() === 'kush' && typeof KUSH_PORTRAIT !== 'undefined'){
@@ -2433,6 +2588,16 @@
     body.innerHTML = sorted.map(item=>{
       const pct = item.minQty > 0 ? Math.min(100, (item.quantity/Math.max(item.quantity,item.minQty*3))*100) : 100;
       // Resolve image: Drive URL (cross-device) takes priority over local base64
+      // Restock predictor and dead stock check
+      const velocity = getRestockDays(item.name);
+      const daysLeft = velocity && item.quantity ? Math.round(item.quantity/velocity) : null;
+      const restockStr = daysLeft!==null ? `<span style="font-size:10px;color:${daysLeft<=3?'var(--red)':daysLeft<=7?'#f9a825':'var(--muted)'};">~${daysLeft}d left</span>` : '';
+      const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+      const recentSale = sales.find(s=>s.status==='Completed'&&s.date>=thirtyDaysAgo.toISOString().slice(0,10)&&s.item&&s.item.toLowerCase()===item.name.toLowerCase());
+      const deadBadge = (!recentSale&&item.quantity>0) ? ' <span class="dead-stock">No sales 30d+</span>' : '';
+      const waMsg = `Hi, I need to restock:\n*${item.name}*\nCurrent stock: ${item.quantity}\nPlease advise availability and price.\n\n— Elfancy Vapes`;
+      const waBtn = (item.quantity<=item.minQty) ? `<button class="wa-btn" onclick="window.open('https://wa.me/?text='+encodeURIComponent(${JSON.stringify(waMsg)}),'_blank')">📱 Restock</button>` : '';
+
       const driveDirectUrl = item.imageUrl ? toDriveDirectUrl(item.imageUrl) : null;
       const imgSrc = driveDirectUrl || item.image || null;
       const imgBadge = driveDirectUrl ? '☁️' : (item.image ? '💾' : '');
@@ -2452,7 +2617,7 @@
       const barColor = item.quantity===0?'var(--red)':item.quantity<=item.minQty?'#f9a825':'var(--green)';
       return `<tr>
         ${imgCell}
-        <td><strong>${escapeHtml(item.name)}</strong>
+        <td><strong>${escapeHtml(item.name)}</strong>${deadBadge}
           <div style="height:4px;background:#f1efe9;border-radius:999px;margin-top:5px;width:120px;">
             <div style="height:4px;background:${barColor};border-radius:999px;width:${pct}%;"></div>
           </div>
@@ -2461,7 +2626,8 @@
         <td class="mono">${item.minQty}</td>
         <td class="mono">${item.costPrice?fmtKES(item.costPrice):'—'}</td>
         <td class="mono">${item.costPrice?fmtKES(item.quantity*item.costPrice):'—'}</td>
-        <td>${status}</td>
+        <td>${restockStr||'—'}</td>
+        <td>${status} ${waBtn}</td>
         <td style="display:flex;gap:4px;">
           <button onclick="adjustStock('${item.id}',1)" style="border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 8px;cursor:pointer;font-weight:700;">+</button>
           <button onclick="adjustStock('${item.id}',-1)" style="border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 8px;cursor:pointer;font-weight:700;">−</button>
@@ -2910,12 +3076,22 @@
     const stored = getStoredGeo(key);
     if(stored){ geocodeCache[key]=stored; return stored; }
     try{
-      await new Promise(r=>setTimeout(r,300)); // rate limit Nominatim
-      const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc+', Nairobi, Kenya')}&format=json&limit=1&countrycodes=ke`;
-      const res=await fetch(url,{headers:{'User-Agent':'ElfancyVapesDashboard/1.0'}});
-      const data=await res.json();
-      if(data&&data[0]){
-        const result={lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon),display:data[0].display_name};
+      await new Promise(r=>setTimeout(r,300));
+      // Try with Nairobi context first
+      const q1 = encodeURIComponent(loc+', Nairobi, Kenya');
+      const res1 = await fetch(`https://nominatim.openstreetmap.org/search?q=${q1}&format=json&limit=1&countrycodes=ke`,{headers:{'User-Agent':'ElfancyVapesDashboard/1.0'}});
+      const data1 = await res1.json();
+      if(data1&&data1[0]){
+        const result={lat:parseFloat(data1[0].lat),lng:parseFloat(data1[0].lon),display:data1[0].display_name};
+        geocodeCache[key]=result; storeGeo(key,result); return result;
+      }
+      // Fallback: try Kenya only (for specific estate/apartment names)
+      await new Promise(r=>setTimeout(r,300));
+      const q2 = encodeURIComponent(loc+', Kenya');
+      const res2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${q2}&format=json&limit=1&countrycodes=ke`,{headers:{'User-Agent':'ElfancyVapesDashboard/1.0'}});
+      const data2 = await res2.json();
+      if(data2&&data2[0]){
+        const result={lat:parseFloat(data2[0].lat),lng:parseFloat(data2[0].lon),display:data2[0].display_name};
         geocodeCache[key]=result; storeGeo(key,result); return result;
       }
     }catch(e){ console.error('geocode failed',loc,e); }
@@ -2928,22 +3104,31 @@
       document.getElementById('orderMap').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;">Map library not loaded — check your internet connection.</div>';
       return;
     }
+    // Determine which store to centre on and show
+    const activeBranch = currentBranch !== 'all' ? branches.find(b=>b.name===currentBranch) : branches[0];
+    const storeCoords = activeBranch ? activeBranch.storeCoords : STORE_LOCATION;
+    const storeLabel = activeBranch ? activeBranch.storeLabel : 'Elfancy Vapes';
+
     if(!leafletMap){
-      leafletMap = L.map('orderMap').setView(STORE_LOCATION, 13);
+      leafletMap = L.map('orderMap').setView(storeCoords, 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
         attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>',maxZoom:18
       }).addTo(leafletMap);
+    } else {
+      leafletMap.setView(storeCoords, 13);
     }
     leafletMap.eachLayer(l=>{ if(l instanceof L.CircleMarker||l instanceof L.Marker||l instanceof L.Polyline) leafletMap.removeLayer(l); });
 
-    // Add store marker (hub)
-    const storeIcon = L.divIcon({
-      html:`<div style="width:34px;height:34px;background:var(--dark);border:3px solid var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 10px rgba(0,0,0,0.4);">🏪</div>`,
-      iconSize:[34,34], iconAnchor:[17,17], className:''
+    // Add all branch store markers
+    branches.forEach(b=>{
+      const icon = L.divIcon({
+        html:`<div style="width:34px;height:34px;background:${b.color};border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 10px rgba(0,0,0,0.4);">🏪</div>`,
+        iconSize:[34,34], iconAnchor:[17,17], className:''
+      });
+      L.marker(b.storeCoords, {icon, zIndexOffset:1000})
+        .addTo(leafletMap)
+        .bindPopup(`<strong>Elfancy Vapes — ${b.name}</strong><br>${b.storeLabel}`);
     });
-    L.marker(STORE_LOCATION, {icon:storeIcon, zIndexOffset:1000})
-      .addTo(leafletMap)
-      .bindPopup('<strong>Elfancy Vapes</strong><br>Diodori, Lagiri Rd<br>Nairobi · <a href="https://maps.app.goo.gl/c8v87bDC8aWVYmcc9" target="_blank">Open in Maps</a>');
 
     // Apply filters
     const riderFilter = (document.getElementById('mapRiderFilter').value||'').trim().toLowerCase();
@@ -3001,8 +3186,10 @@
       const color=platMapColors[s.platform||'Glovo']||'#888';
       const deliveryPt = [coords.lat+jitter(), coords.lng+jitter()];
 
-      // Draw spoke line from store to delivery point
-      L.polyline([STORE_LOCATION, deliveryPt], {
+      // Draw spoke line from the sale's branch store to delivery point
+      const saleBranch = branches.find(b=>b.name===(s.branch||'Nairobi')) || branches[0];
+      const spokeOrigin = saleBranch ? saleBranch.storeCoords : STORE_LOCATION;
+      L.polyline([spokeOrigin, deliveryPt], {
         color:color, weight:1.5, opacity:0.35, dashArray:'4,6'
       }).addTo(leafletMap);
       const marker=L.circleMarker(deliveryPt,{
@@ -3074,13 +3261,50 @@
     'githurai':300,'ruiru':330,'kiambu town':360,'limuru':390,
   };
 
+  // Thika Town delivery zones (from Thika Town CBD, ~-1.033S, 37.069E)
+  const THIKA_DELIVERY_ZONES = {
+    // Zone 1: 0-4km — KES 80-120 (Thika Town)
+    'thika town':80,'thika cbd':80,'thika':80,'biashara street':80,'kenyatta avenue thika':80,
+    'ziwani thika':100,'makongeni thika':100,'township':80,'ngoingwa':110,
+    'kiandutu':110,'gatuanyaga':120,'landless':120,'hospital road thika':100,
+    'thika stadium area':100,'thika high road':120,
+    // Zone 2: 4-10km — KES 130-180
+    'juja':150,'juja farm':160,'witeithie':150,'kamenu':160,'mugutha':160,
+    'thirika':150,'gatundu road':160,'kakuzi':170,'thika road thika':130,
+    // Zone 3: 10-20km — KES 180-250
+    'ruiru':190,'gachororo':200,'githurai':210,'thika road nairobi':220,
+    'ngoliba':230,'mang\'u':220,'gatundu':240,'kiambu':240,
+    // Zone 4: 20-35km — KES 250-350
+    'kasarani':270,'roysambu':280,'zimmerman':290,'kahawa':280,
+    'kahawa west':280,'kiambu town':300,'westlands':320,'cbd':330,
+    'city centre':330,'cbd / city centre':330,'parklands':310,
+    'nairobi cbd':330,'nairobi westlands':320,
+    // Zone 5: 35km+ — KES 350-450
+    'embakasi':360,'karen':370,'langata':380,'kilimani':350,'hurlingham':350,
+    'upper hill':340,'industrial area nairobi':340,'lavington':360,
+  };
+
+  function updateLocationPlaceholder(){
+    const el = document.getElementById('f_location'); if(!el) return;
+    if(formBranch==='Thika Town'){
+      el.placeholder='Type to search — Thika CBD, Ngoingwa, Juja, Ruiru…';
+    } else {
+      el.placeholder='Type to search — Westlands, Karen, estate name…';
+    }
+  }
+
+  function getZonesForBranch(){
+    return formBranch==='Thika Town' ? THIKA_DELIVERY_ZONES : DELIVERY_ZONES;
+  }
+
   window.suggestDeliveryFee = function(val){
     const hint = document.getElementById('deliveryFeeHint');
     if(!val){ hint.style.display='none'; return; }
     const key = val.toLowerCase().trim().replace(/ \(.*\)/,'');
+    const zones = getZonesForBranch();
     let fee = null;
-    if(DELIVERY_ZONES[key]) fee = DELIVERY_ZONES[key];
-    if(!fee){ const k = Object.keys(DELIVERY_ZONES).find(z=>key.includes(z)||z.includes(key)); if(k) fee=DELIVERY_ZONES[k]; }
+    if(zones[key]) fee = zones[key];
+    if(!fee){ const k = Object.keys(zones).find(z=>key.includes(z)||z.includes(key)); if(k) fee=zones[k]; }
     if(fee){
       const zone = fee<=150?'Zone 1 · Very close (0–5km)':fee<=200?'Zone 2 · Near (5–10km)':fee<=250?'Zone 3 · Medium (10–15km)':fee<=300?'Zone 4 · Far (15–20km)':'Zone 5 · Very far (20km+)';
       hint.style.display='block';
@@ -3089,6 +3313,296 @@
       hint.style.display='none';
     }
   };
+
+  // ---------- Location autocomplete ----------
+  const ALL_NAIROBI_AREAS = [
+    // Zone 1 — Very close (KES 100–150)
+    'Adams Arcade','Kilimani','Hurlingham','Lavington','Woodley','Kibera',
+    "Ng'ando",'Dagoretti','Riruta','Olympic','Kawangware','Mugumoini',
+    'Dagoretti Corner','Jamhuri','Lindi','South B','Nairobi West','Kileleshwa',
+    'Kabiro','Langata','Karen','South C',
+    // Zone 2 — Near (KES 150–200)
+    'Upper Hill','Uthiru','Waithaka','Ngong Road','Madaraka','Westlands',
+    'CBD','City Centre','CBD / City Centre','Industrial Area','Nyayo Estate',
+    'Muthangari','Highridge','Mountain View','Kabete','Rongai','Ongata Rongai',
+    'Ngong','Mutuini','Ngara','Starehe','Pumwani','Shauri Moyo','Ziwani',
+    'Pangani','Majengo','Spring Valley','Loresho','Eastleigh','Riruta Satellite',
+    'Bomas of Kenya Area','Galleria Area','Siaya Road',
+    // Zone 3 — Medium (KES 200–250)
+    'Parklands','Huruma','Mathare','Baba Dogo','Lucky Summer','Ruaraka',
+    'Thome','Muthaiga','Gigiri','Runda','Nyari','Kitisuru','Kyuna',
+    'Donholm','Buruburu','Jericho','Makadara','California','Ofafa','Makongeni',
+    'Embakasi','Fedha','Tassia','Umoja','Kayole','Komarock','Syokimau',
+    'Mombasa Road','Mlolongo','Pipeline','Kikuyu','Ngong Town',
+    // Zone 4 — Far (KES 250–300)
+    'Kasarani','Roysambu','Zimmerman','Marurui','Mwiki','Ruai','Njiru',
+    'Dandora',"Mihang'o",'Utawala','Kahawa','Kahawa West','Kahawa Sukari',
+    'Thika Road','Athi River','Kitengela','Ruaka','Thindigua','Kiambu Road',
+    'Karura',"Sarang'ombe",
+    // Zone 5 — Very far (KES 300–400)
+    'Githurai','Ruiru','Kiambu Town','Limuru',
+    // Additional well-known areas
+    'Highrise','Makongeni','Ofafa Jericho','Bahati','Harambee','Pangani',
+    'Nairobi CBD','Upper Hill Area','Westlands CBD','Village Market Area',
+    'Two Rivers Area','Garden City Area','Sarit Centre Area','Junction Area',
+    'Yaya Centre Area','T-Mall Area','Prestige Area','Lavington Mall Area',
+    'Racecourse','Nairobi Racecourse','Ngong Hills','Lenana','Langata Road',
+    'Kibra','Woodley Estate','Ngumo','Ngumo Estate','Nairobi West Estate',
+    'Kangemi','Uthiru Regen','Mountain View Estate','Ridgeways','Rosslyn',
+    'Lower Kabete','Upper Kabete','Wangige','Ruaka Town','Banana','Githunguri Road',
+    'Kiambu Town','Ruiru Town','Juja','Thika','Jomo Kenyatta Airport Area',
+    'Wilson Airport Area','Industrial Area Nairobi','Bay Area','City Park',
+    'Highpark','Westpark','Riverside','Riverside Drive','Raphta Road Area',
+    'State House Area','Nairobi Hill','Ngong Forest Area','Hardy','Hardy Estate',
+    'Langata Estate','Karen Hardy','Langata South','Mugumoini Estate',
+  ];
+
+  let locationDropdownIdx = -1;
+
+  window.handleLocationInput = function(val){
+    const dropdown = document.getElementById('locationDropdown');
+    suggestDeliveryFee(val);
+    if(!val || val.length < 1){ dropdown.style.display='none'; locationDropdownIdx=-1; return; }
+    const q = val.toLowerCase();
+    // Combine past locations from sales with predefined list, deduplicated
+    const past = [...new Set(sales.filter(s=>s.deliveryLocation).map(s=>s.deliveryLocation))];
+    const combined = [...new Set([...past, ...ALL_NAIROBI_AREAS])];
+    // Match anywhere in the string
+    const matches = combined.filter(a=>a.toLowerCase().includes(q)).slice(0,12);
+    if(!matches.length){ dropdown.style.display='none'; return; }
+    locationDropdownIdx = -1;
+    dropdown.innerHTML = matches.map((m,i)=>{
+      // Highlight matching part
+      const idx = m.toLowerCase().indexOf(q);
+      const before = escapeHtml(m.slice(0,idx));
+      const match = escapeHtml(m.slice(idx,idx+q.length));
+      const after = escapeHtml(m.slice(idx+q.length));
+      const fee = (getZonesForBranch())[m.toLowerCase().trim()];
+      const feeBadge = fee ? `<span style="float:right;font-size:10px;font-weight:700;color:var(--muted);background:var(--paper);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;">KES ${fee}</span>` : '';
+      const isPast = past.includes(m) ? '<span style="font-size:9px;color:var(--green);font-weight:700;margin-left:6px;">recent</span>' : '';
+      return `<div class="loc-opt" data-val="${escapeHtml(m)}" data-idx="${i}"
+        style="padding:9px 13px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;"
+        onmouseenter="this.style.background='var(--green-dim)'" onmouseleave="this.style.background=''"
+        onclick="selectLocation('${escapeHtml(m)}')">
+        <span>${before}<strong style="color:var(--green);">${match}</strong>${after}${isPast}</span>
+        ${feeBadge}
+      </div>`;
+    }).join('');
+    dropdown.style.display='block';
+  };
+
+  window.handleLocationKey = function(e){
+    const dropdown = document.getElementById('locationDropdown');
+    const opts = dropdown.querySelectorAll('.loc-opt');
+    if(!opts.length) return;
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      locationDropdownIdx = Math.min(locationDropdownIdx+1, opts.length-1);
+    } else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      locationDropdownIdx = Math.max(locationDropdownIdx-1, -1);
+    } else if(e.key==='Enter'&&locationDropdownIdx>=0){
+      e.preventDefault();
+      selectLocation(opts[locationDropdownIdx].dataset.val);
+      return;
+    } else if(e.key==='Escape'){
+      dropdown.style.display='none'; locationDropdownIdx=-1; return;
+    } else { return; }
+    opts.forEach((o,i)=>o.style.background=i===locationDropdownIdx?'var(--green-dim)':'');
+  };
+
+  window.selectLocation = function(val){
+    document.getElementById('f_location').value = val;
+    document.getElementById('locationDropdown').style.display='none';
+    locationDropdownIdx=-1;
+    suggestDeliveryFee(val);
+  };
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('#f_location')&&!e.target.closest('#locationDropdown')){
+      const d=document.getElementById('locationDropdown');
+      if(d) d.style.display='none';
+    }
+  });
+
+  // ---------- Branch management ----------
+  function renderBranchFilter(){
+    const row = document.getElementById('branchFilterRow');
+    if(!row) return;
+    // Keep the "All" pill and rebuild branch pills
+    const allPill = row.querySelector('[data-branch="all"]');
+    [...row.querySelectorAll('[data-branch]:not([data-branch="all"])')].forEach(e=>e.remove());
+    branches.forEach(b=>{
+      const btn = document.createElement('button');
+      btn.className = 'pill';
+      btn.dataset.branch = b.name;
+      btn.style.cssText = `border-color:${b.color};color:${b.color};`;
+      btn.textContent = b.name;
+      btn.addEventListener('click', ()=>{
+        [...row.querySelectorAll('[data-branch]')].forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        currentBranch = b.name;
+        renderAll();
+      });
+      row.insertBefore(btn, row.lastElementChild); // before sync button (not in filterRow, this is wrong)
+    });
+    // Wire all-branch pill
+    if(allPill && !allPill._branchWired){
+      allPill._branchWired = true;
+      allPill.addEventListener('click', ()=>{
+        [...row.querySelectorAll('[data-branch]')].forEach(p=>p.classList.remove('active'));
+        allPill.classList.add('active');
+        currentBranch = 'all';
+        renderAll();
+      });
+    }
+  }
+
+  function renderBranchSeg(){
+    const seg = document.getElementById('branchSeg'); if(!seg) return;
+    seg.innerHTML = branches.map((b,i)=>`
+      <button type="button" ${i===0?'class="on"':''} data-branch-form="${b.name}"
+        style="${i===0?'background:var(--dark);color:#fff;':''}"
+        onclick="selectFormBranch('${b.name}',this)">${b.name}</button>`
+    ).join('');
+    if(branches.length && !branches.find(b=>b.name===formBranch)){
+      formBranch = branches[0].name;
+    }
+  }
+
+  window.selectFormBranch = function(name, el){
+    formBranch = name;
+    [...document.querySelectorAll('[data-branch-form]')].forEach(b=>{
+      b.classList.remove('on');
+      b.style.background=''; b.style.color='';
+    });
+    el.classList.add('on');
+    el.style.background='var(--dark)'; el.style.color='#fff';
+  };
+
+  function renderBranchKPIs(){
+    const row = document.getElementById('branchKpiRow');
+    if(!row) return;
+    const hasMultiple = branches.length >= 2;
+    row.style.display = hasMultiple ? 'grid' : 'none';
+    if(!hasMultiple) return;
+
+    const {start,end} = rangeFor(currentRange);
+    const periodSales = sales.filter(s=>{
+      if(s.status!=='Completed') return false;
+      if(start && s.date<start) return false;
+      if(end && s.date>end) return false;
+      if((s.platform||'Glovo')==='Kilimall') return false; // Kilimall is national, not branch-tracked
+      return true;
+    });
+
+    const nairobi = periodSales.filter(s=>(s.branch||'Nairobi')==='Nairobi');
+    const thika   = periodSales.filter(s=>(s.branch||'Nairobi')==='Thika Town');
+
+    const setKpi = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
+    setKpi('brNairobiRevenue', fmtKES(nairobi.reduce((a,s)=>a+s.revenue,0)));
+    setKpi('brNairobiProfit',  fmtKES(nairobi.reduce((a,s)=>a+s.profit,0)));
+    setKpi('brNairobiOrders',  nairobi.length);
+    setKpi('brThikaRevenue',   fmtKES(thika.reduce((a,s)=>a+s.revenue,0)));
+    setKpi('brThikaProfit',    fmtKES(thika.reduce((a,s)=>a+s.profit,0)));
+    setKpi('brThikaOrders',    thika.length);
+
+    // Dynamic branch columns if more than two
+    if(branches.length > 2){
+      row.style.gridTemplateColumns = `repeat(${branches.length},1fr)`;
+    }
+  }
+
+  function renderBranchList(){
+    const el = document.getElementById('branchList'); if(!el) return;
+    el.innerHTML = branches.map((b,i)=>`
+      <div class="user-row">
+        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${b.color};flex-shrink:0;"></span>
+        <span class="user-name">${b.name}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;">${b.storeCoords[0].toFixed(4)}, ${b.storeCoords[1].toFixed(4)}</span>
+        ${branches.length>1?`<button class="user-del" data-branchdel="${i}">✕</button>`:''}
+      </div>`).join('');
+  }
+
+  // ---------- Tab navigation ----------
+  let currentTab = 'overview';
+  function switchTab(tab){
+    currentTab = tab;
+    document.querySelectorAll('.dashboard-section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    const sec = document.getElementById('sec-'+tab);
+    const btn = document.querySelector(`[data-tab="${tab}"]`);
+    if(sec) sec.classList.add('active');
+    if(btn) btn.classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(tab==='operations' && typeof L!=='undefined') setTimeout(()=>{ if(leafletMap) leafletMap.invalidateSize(); },300);
+  }
+
+  // ---------- Notifications ----------
+  function buildNotifications(){
+    const items = [];
+    // Low stock
+    const low = inventory.filter(i=>i.quantity>0&&i.quantity<=i.minQty);
+    const out  = inventory.filter(i=>i.quantity===0);
+    if(out.length)  items.push({type:'danger',icon:'🚫',msg:`${out.length} product${out.length>1?'s':''} out of stock — orders will fail`});
+    if(low.length)  items.push({type:'warn',icon:'⚠️',msg:`${low.length} product${low.length>1?'s':''} running low — restock soon`});
+    // Dead stock (not sold in 30+ days)
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
+    const cutoffStr = cutoff.toISOString().slice(0,10);
+    const deadItems = inventory.filter(i=>{
+      if(!i.quantity) return false;
+      const lastSale = sales.filter(s=>s.status==='Completed'&&s.item&&s.item.toLowerCase()===i.name.toLowerCase()).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      return !lastSale || lastSale.date < cutoffStr;
+    });
+    if(deadItems.length) items.push({type:'warn',icon:'📦',msg:`${deadItems.length} product${deadItems.length>1?'s':''} haven't sold in 30+ days`});
+    // Pending syncs
+    const pending = sales.filter(s=>s.sync==='pending'||s.sync==='fail').length;
+    if(pending>0) items.push({type:'warn',icon:'🔄',msg:`${pending} sale${pending>1?'s':''} pending sync to Sheet`});
+    // Record check (today)
+    const todaySales = sales.filter(s=>s.status==='Completed'&&s.date===todayStr());
+    const todayRev = todaySales.reduce((a,s)=>a+s.revenue,0);
+    if(todayRev>0){
+      const allDayRevs = {};
+      sales.filter(s=>s.status==='Completed').forEach(s=>{ allDayRevs[s.date]=(allDayRevs[s.date]||0)+s.revenue; });
+      const maxDay = Math.max(...Object.values(allDayRevs));
+      if(todayRev >= maxDay && Object.keys(allDayRevs).length>1)
+        items.push({type:'info',icon:'🏆',msg:`Today is your best day ever — ${fmtKES(todayRev)} revenue!`});
+    }
+    // Update bell
+    const count = document.getElementById('notifCount');
+    const panel = document.getElementById('notifItems');
+    if(count){ count.textContent=items.length; count.style.display=items.length?'flex':'none'; }
+    if(panel){
+      panel.innerHTML = items.length
+        ? items.map(it=>`<div class="notif-item ${it.type}"><span class="notif-icon">${it.icon}</span><span>${it.msg}</span></div>`).join('')
+        : '<div style="font-size:12.5px;color:var(--muted);">All clear — no alerts.</div>';
+    }
+  }
+
+  // ---------- Growth indicator (week-on-week) ----------
+  function getWoWGrowth(){
+    const today = new Date();
+    const thisWeekStart = new Date(today); thisWeekStart.setDate(today.getDate()-6);
+    const lastWeekStart = new Date(today); lastWeekStart.setDate(today.getDate()-13);
+    const lastWeekEnd   = new Date(today); lastWeekEnd.setDate(today.getDate()-7);
+    const fmt = d=>d.toISOString().slice(0,10);
+    const thisRev = sales.filter(s=>s.status==='Completed'&&s.date>=fmt(thisWeekStart)).reduce((a,s)=>a+s.revenue,0);
+    const lastRev = sales.filter(s=>s.status==='Completed'&&s.date>=fmt(lastWeekStart)&&s.date<=fmt(lastWeekEnd)).reduce((a,s)=>a+s.revenue,0);
+    if(!lastRev) return null;
+    return ((thisRev-lastRev)/lastRev*100);
+  }
+
+  // ---------- Restock predictor ----------
+  function getRestockDays(itemName){
+    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+    const cutStr = thirtyDaysAgo.toISOString().slice(0,10);
+    const unitsSold = sales.filter(s=>s.status==='Completed'&&s.date>=cutStr&&s.item&&s.item.toLowerCase()===itemName.toLowerCase())
+      .reduce((a,s)=>a+(s.quantity||0),0);
+    if(!unitsSold) return null;
+    const dailyVelocity = unitsSold/30;
+    return dailyVelocity;
+  }
 
   // ---------- Wiring ----------
   document.getElementById('statusSeg').addEventListener('click', e=>{
@@ -3106,10 +3620,50 @@
     formPay = btn.dataset.pay;
     [...document.querySelectorAll('#paySeg button')].forEach(b=>b.classList.toggle('on', b===btn));
   });
+  // Tag all untagged sales as Nairobi
+  document.getElementById('tagNairobiBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('connStatus');
+    let tagged = 0;
+    sales.forEach(s=>{
+      if(!s.branch && (s.platform||'Glovo') !== 'Kilimall'){
+        s.branch = 'Nairobi';
+        s.sync = 'pending'; // mark for re-push
+        tagged++;
+      }
+    });
+    if(tagged > 0){
+      await saveSales();
+      renderAll();
+      statusEl.className='status-line show ok';
+      statusEl.textContent=`✓ Tagged ${tagged} sale${tagged!==1?'s':''} as Nairobi. Now click Force push ALL to update your Sheet.`;
+    } else {
+      statusEl.className='status-line show ok';
+      statusEl.textContent='All sales already have a branch assigned — nothing to update.';
+    }
+  });
+
+  // Hide branch selector when Kilimall is selected (national platform, not branch-specific)
   document.getElementById('platformSeg').addEventListener('click', e=>{
     const btn = e.target.closest('button'); if(!btn) return;
     formPlatform = btn.dataset.plat;
     [...document.querySelectorAll('#platformSeg button')].forEach(b=>b.classList.toggle('on', b===btn));
+    const branchField = document.getElementById('branchSeg')?.closest('.field');
+    if(branchField){
+      if(formPlatform === 'Kilimall'){
+        branchField.style.display = 'none';
+        formBranch = 'Kilimall'; // internal tag — excluded from branch KPIs
+      } else {
+        branchField.style.display = 'block';
+        formBranch = document.querySelector('[data-branch-form].on')?.dataset?.branchForm || branches[0]?.name || 'Nairobi';
+      }
+    }
+  });
+  document.getElementById('branchSeg').addEventListener('click', e=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    formBranch = btn.dataset.branch;
+    [...document.querySelectorAll('#branchSeg button')].forEach(b=>b.classList.toggle('on', b===btn));
+    // Update delivery zones based on branch
+    updateLocationPlaceholder();
   });
   document.querySelectorAll('[data-platform]').forEach(p=>{
     p.addEventListener('click', ()=>{
@@ -3171,6 +3725,23 @@
   document.getElementById('prodCollapseBtn').addEventListener('click', ()=>{
     prodCompCollapsed = !prodCompCollapsed;
     renderProductComparison();
+  });
+
+  // Tab navigation
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
+  });
+
+  // Notification bell toggle
+  document.getElementById('notifBtn').addEventListener('click', e=>{
+    e.stopPropagation();
+    document.getElementById('notifPanel').classList.toggle('show');
+  });
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('#notifBtn')&&!e.target.closest('#notifPanel')){
+      const p = document.getElementById('notifPanel');
+      if(p) p.classList.remove('show');
+    }
   });
 
   document.getElementById('refreshMapBtn').addEventListener('click', renderOrderMap);
@@ -3255,6 +3826,38 @@
   });
 
   // Break-even
+  document.getElementById('addBranchBtn').addEventListener('click', async ()=>{
+    const name = document.getElementById('newBranchName').value.trim();
+    const coords = document.getElementById('newBranchCoords').value.trim();
+    const s = document.getElementById('branchStatus');
+    if(!name){ s.className='status-line show fail'; s.textContent='Enter a branch name.'; return; }
+    if(branches.find(b=>b.name.toLowerCase()===name.toLowerCase())){
+      s.className='status-line show fail'; s.textContent='A branch with that name already exists.'; return;
+    }
+    const parts = coords.split(',').map(Number);
+    const storeCoords = parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1]) ? [parts[0],parts[1]] : [-1.2921, 36.8219];
+    const colors = ['#3b6ef5','#f5a623','#9b59b6','#e67e22','#e74c3c'];
+    const color = colors[branches.length % colors.length];
+    branches.push({ id: name.slice(0,3).toUpperCase()+Date.now().toString(36).slice(-3), name, storeCoords, storeLabel: name, color });
+    await saveBranches();
+    document.getElementById('newBranchName').value='';
+    document.getElementById('newBranchCoords').value='';
+    renderBranchList();
+    renderBranchFilter();
+    renderBranchSeg();
+    renderBranchKPIs();
+    s.className='status-line show ok'; s.textContent='✓ Branch "'+name+'" added.';
+  });
+  document.getElementById('branchList').addEventListener('click', async e=>{
+    const btn=e.target.closest('[data-branchdel]'); if(!btn) return;
+    const idx = parseInt(btn.dataset.branchdel);
+    if(branches.length<=1){ alert('Cannot remove the only branch.'); return; }
+    if(!confirm('Remove branch "'+branches[idx].name+'"?')) return;
+    branches.splice(idx,1);
+    await saveBranches();
+    renderBranchList(); renderBranchFilter(); renderBranchSeg(); renderBranchKPIs();
+  });
+
   document.getElementById('saveBreakEvenBtn').addEventListener('click', async ()=>{
     settings.breakEvenMonthly=parseFloat(document.getElementById('breakEvenInput').value)||0;
     await saveSettings(); renderBreakEven();
@@ -3556,9 +4159,11 @@
     document.getElementById('userStatus').className = 'status-line';
     document.getElementById('riderStatus').className = 'status-line';
     document.getElementById('breakEvenStatus').className = 'status-line';
+    document.getElementById('branchStatus').className = 'status-line';
     document.getElementById('breakEvenInput').value = settings.breakEvenMonthly||'';
     renderUserList();
     renderRiderList2();
+    renderBranchList();
     document.getElementById('modalBg').classList.add('show');
   });
   document.getElementById('closeModal').addEventListener('click', ()=> document.getElementById('modalBg').classList.remove('show'));
@@ -3687,6 +4292,8 @@
     }
     renderAll();
     updatePreview();
+    renderBranchFilter();
+    renderBranchSeg();
     // Show login screen
     renderLoginDropdown();
     document.getElementById('loginBg').style.display = 'flex';
