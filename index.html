@@ -584,10 +584,12 @@
         </div>
       </div>
       <div class="row2">
-        <div class="field">
+        <div class="field" style="position:relative;">
           <label>Product</label>
-          <input type="text" id="f_item" list="itemList" placeholder="e.g. Lost Mary BM600">
-          <datalist id="itemList"></datalist>
+          <input type="text" id="f_item" placeholder="Search products…" autocomplete="off"
+            oninput="handleProductInput(this.value)" onkeydown="handleProductKey(event)" onfocus="handleProductInput(this.value)">
+          <div id="productDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--green);border-radius:10px;box-shadow:var(--shadow);z-index:200;max-height:260px;overflow-y:auto;"></div>
+          <div id="productStockHint" style="display:none;margin-top:5px;font-size:11.5px;padding:6px 10px;border-radius:7px;font-weight:700;"></div>
         </div>
         <div class="field">
           <label>Customer name</label>
@@ -2046,8 +2048,23 @@
   }
 
   function renderItemList(){
-    const items = [...new Set(sales.map(s=>s.item).filter(Boolean))];
-    document.getElementById('itemList').innerHTML = items.map(i=>`<option value="${i}">`).join('');
+    // Merge inventory names + past sale names for datalist fields (returns form, restock form, etc.)
+    const invNames = inventory.map(i=>i.name).filter(Boolean);
+    const salesNames = sales.map(s=>s.item).filter(Boolean);
+    const combined = [...new Set([...invNames, ...salesNames])];
+    const html = combined.map(i=>`<option value="${escapeHtml(i)}">`).join('');
+    document.querySelectorAll('[list="itemList"]').forEach(el=>{
+      const dl = document.getElementById('itemList');
+      if(dl) dl.innerHTML = html;
+    });
+    // Make sure the itemList datalist exists
+    if(!document.getElementById('itemList')){
+      const dl = document.createElement('datalist');
+      dl.id = 'itemList'; dl.innerHTML = html;
+      document.body.appendChild(dl);
+    } else {
+      document.getElementById('itemList').innerHTML = html;
+    }
   }
 
   function renderSyncPill(){
@@ -2116,6 +2133,9 @@
     document.getElementById('f_phone').value='';
     document.getElementById('f_rider').value='';
     document.getElementById('f_location').value='';
+    const ph=document.getElementById('productStockHint'); if(ph) ph.style.display='none';
+    const pd=document.getElementById('productDropdown'); if(pd) pd.style.display='none';
+    const lh=document.getElementById('deliveryFeeHint'); if(lh) lh.style.display='none';
     document.getElementById('f_qty').value=1;
     document.getElementById('f_sell').value='';
     document.getElementById('f_cost').value='';
@@ -3418,11 +3438,120 @@
     suggestDeliveryFee(val);
   };
 
-  // Close dropdown when clicking outside
+  // ---------- Product autocomplete (from inventory + past sales) ----------
+  let productDropdownIdx = -1;
+
+  window.handleProductInput = function(val){
+    const dropdown = document.getElementById('productDropdown');
+    const hint = document.getElementById('productStockHint');
+    if(!dropdown) return;
+
+    // Build combined product list: inventory first (with stock data), then past sales
+    const invProducts = inventory.map(i=>({name:i.name, qty:i.quantity, cost:i.costPrice, minQty:i.minQty, fromInventory:true}));
+    const invNames = new Set(invProducts.map(i=>i.name.toLowerCase()));
+    const pastNames = [...new Set(sales.map(s=>s.item).filter(Boolean))].filter(n=>!invNames.has(n.toLowerCase()));
+
+    if(!val || val.length < 1){
+      // Show all inventory products when field is focused empty
+      const allInv = invProducts.slice(0,15);
+      dropdown.innerHTML = allInv.map((p,i)=>{
+        const stockColor = p.qty===0?'var(--red)':p.qty<=p.minQty?'#f9a825':'var(--green)';
+        const stockLabel = p.qty===0?'Out of stock':p.qty<=p.minQty?`Low (${p.qty} left)`:`${p.qty} in stock`;
+        return `<div class="prod-opt" data-val="${escapeHtml(p.name)}" data-cost="${p.cost||0}" data-idx="${i}"
+          style="padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;gap:10px;"
+          onmouseenter="this.style.background='var(--green-dim)'" onmouseleave="this.style.background=''"
+          onclick="selectProduct('${escapeHtml(p.name)}',${p.cost||0},${p.qty})">
+          <span style="font-weight:700;font-size:13px;">${escapeHtml(p.name)}</span>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span style="font-size:10px;font-weight:800;color:${stockColor};background:${stockColor}18;padding:2px 8px;border-radius:5px;">${stockLabel}</span>
+            ${p.cost?`<span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);">Cost: ${fmtKES(p.cost)}</span>`:''}
+          </div>
+        </div>`;
+      }).join('') + (pastNames.length?`<div style="padding:6px 13px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;background:#fafafa;">Past sales (not in inventory)</div>`+pastNames.slice(0,5).map((n,i)=>`<div class="prod-opt" data-val="${escapeHtml(n)}" data-cost="0" data-idx="${allInv.length+i}" style="padding:9px 13px;cursor:pointer;border-bottom:1px solid var(--line2);font-size:13px;color:var(--muted);" onmouseenter="this.style.background='#f9f8f4'" onmouseleave="this.style.background=''" onclick="selectProduct('${escapeHtml(n)}',0,null)">${escapeHtml(n)}</div>`).join(''):'');
+      dropdown.style.display = 'block';
+      hint.style.display = 'none';
+      productDropdownIdx = -1;
+      return;
+    }
+
+    const q = val.toLowerCase();
+    const matchInv = invProducts.filter(p=>p.name.toLowerCase().includes(q));
+    const matchPast = pastNames.filter(n=>n.toLowerCase().includes(q));
+    const allMatches = [...matchInv.map(p=>({...p,fromInventory:true})), ...matchPast.map(n=>({name:n,qty:null,cost:0,fromInventory:false}))].slice(0,12);
+
+    if(!allMatches.length){ dropdown.style.display='none'; hint.style.display='none'; return; }
+
+    productDropdownIdx = -1;
+    dropdown.innerHTML = allMatches.map((p,i)=>{
+      const idx = p.name.toLowerCase().indexOf(q);
+      const before = escapeHtml(p.name.slice(0,idx));
+      const match  = escapeHtml(p.name.slice(idx,idx+q.length));
+      const after  = escapeHtml(p.name.slice(idx+q.length));
+      const stockColor = p.qty===null?'var(--muted)':p.qty===0?'var(--red)':p.qty<=p.minQty?'#f9a825':'var(--green)';
+      const stockLabel = p.qty===null?'No stock record':p.qty===0?'Out of stock':p.qty<=p.minQty?`Low (${p.qty})`:`${p.qty} in stock`;
+      return `<div class="prod-opt" data-val="${escapeHtml(p.name)}" data-cost="${p.cost||0}" data-idx="${i}"
+        style="padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;gap:8px;"
+        onmouseenter="this.style.background='var(--green-dim)'" onmouseleave="this.style.background=''"
+        onclick="selectProduct('${escapeHtml(p.name)}',${p.cost||0},${p.qty===null?'null':p.qty})">
+        <span style="font-size:13px;">${before}<strong style="color:var(--green);">${match}</strong>${after}</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:800;color:${stockColor};background:${stockColor}18;padding:2px 8px;border-radius:5px;">${stockLabel}</span>
+          ${p.cost?`<span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);">${fmtKES(p.cost)}</span>`:''}
+        </div>
+      </div>`;
+    }).join('');
+    dropdown.style.display = 'block';
+    hint.style.display = 'none';
+  };
+
+  window.handleProductKey = function(e){
+    const dropdown = document.getElementById('productDropdown');
+    const opts = dropdown.querySelectorAll('.prod-opt');
+    if(!opts.length) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); productDropdownIdx=Math.min(productDropdownIdx+1,opts.length-1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); productDropdownIdx=Math.max(productDropdownIdx-1,-1); }
+    else if(e.key==='Enter'&&productDropdownIdx>=0){ e.preventDefault(); const o=opts[productDropdownIdx]; selectProduct(o.dataset.val,parseFloat(o.dataset.cost)||0,null); return; }
+    else if(e.key==='Escape'){ dropdown.style.display='none'; productDropdownIdx=-1; return; }
+    else return;
+    opts.forEach((o,i)=>o.style.background=i===productDropdownIdx?'var(--green-dim)':'');
+  };
+
+  window.selectProduct = function(name, cost, qty){
+    document.getElementById('f_item').value = name;
+    document.getElementById('productDropdown').style.display = 'none';
+    productDropdownIdx = -1;
+    // Auto-fill cost price from inventory
+    if(cost>0){
+      const costField = document.getElementById('f_cost');
+      if(costField&&!costField.value) costField.value = cost;
+      updatePreview();
+    }
+    // Show stock hint
+    const hint = document.getElementById('productStockHint');
+    if(qty===null||qty===undefined){ hint.style.display='none'; return; }
+    if(qty===0){
+      hint.style.display='block';
+      hint.style.background='var(--red-dim)'; hint.style.color='var(--red)';
+      hint.innerHTML='🚫 This product is <strong>out of stock</strong> — log a restock before selling or the inventory will go negative.';
+    } else if(qty<=3){
+      hint.style.display='block';
+      hint.style.background='#fff8e1'; hint.style.color='#8a6d00';
+      hint.innerHTML=`⚠️ Only <strong>${qty} unit${qty>1?'s':''}</strong> remaining — selling will trigger a low stock alert.`;
+    } else {
+      hint.style.display='block';
+      hint.style.background='var(--green-dim)'; hint.style.color='var(--green)';
+      hint.innerHTML=`✓ <strong>${qty} unit${qty>1?'s':''}</strong> in stock.`;
+      setTimeout(()=>{ hint.style.display='none'; },2500);
+    }
+  };
+
+  // Close product dropdown on outside click
   document.addEventListener('click', e=>{
+    if(!e.target.closest('#f_item')&&!e.target.closest('#productDropdown')){
+      const d=document.getElementById('productDropdown'); if(d) d.style.display='none';
+    }
     if(!e.target.closest('#f_location')&&!e.target.closest('#locationDropdown')){
-      const d=document.getElementById('locationDropdown');
-      if(d) d.style.display='none';
+      const d=document.getElementById('locationDropdown'); if(d) d.style.display='none';
     }
   });
 
