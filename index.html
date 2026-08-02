@@ -751,6 +751,19 @@
 
 </div>
 <div class="dashboard-section" id="sec-analytics">
+
+  <!-- Analytics month filter bar -->
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 0 12px;border-bottom:1.5px solid var(--line);margin-bottom:20px;">
+    <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">📅 Period</span>
+    <select id="analyticsMonthFilter" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);" onchange="applyAnalyticsFilter()">
+      <option value="all">All time</option>
+    </select>
+    <select id="analyticsYearFilter" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);display:none;" onchange="applyAnalyticsFilter()">
+    </select>
+    <button class="ghost-btn" id="analyticsClearBtn" style="font-size:12px;padding:6px 12px;display:none;" onclick="document.getElementById('analyticsMonthFilter').value='all';document.getElementById('analyticsYearFilter').style.display='none';document.getElementById('analyticsClearBtn').style.display='none';applyAnalyticsFilter();">✕ Clear</button>
+    <span id="analyticsPeriodLabel" style="font-size:12px;color:var(--green);font-weight:700;"></span>
+  </div>
+
   <!-- ===== TOOLS ROW: Daily Summary + Commission Calculator ===== -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;">
 
@@ -1338,6 +1351,9 @@
     <button class="ghost-btn" id="syncAllModalBtn" style="width:100%;">↻ Push unsynced sales now</button>
     <div style="height:8px;"></div>
     <button class="ghost-btn" id="forcePushAllBtn" style="width:100%;border-color:var(--green);color:var(--green);font-weight:700;">🔄 Force push ALL data to Sheet</button>
+    <div style="height:6px;"></div>
+    <button class="ghost-btn" id="pushZonesBtn" style="width:100%;border-color:var(--blue);color:var(--blue);font-weight:700;">📍 Push delivery zones to Sheet</button>
+    <p class="desc" style="margin:3px 0 8px;font-size:11.5px;">Saves all ~800 Nairobi &amp; Thika fee zones to a <strong>Delivery Zones</strong> tab. You can then edit fees directly in the Sheet — changes pull back automatically on next login.</p>
     <div style="height:8px;"></div>
     <button class="ghost-btn" id="tagNairobiBtn" style="width:100%;">📍 Tag all untagged sales as Nairobi branch</button>
     <p class="desc" style="margin:4px 0 8px;font-size:11.5px;">Use this once to stamp all your existing Nairobi sales with the Nairobi branch — then force push to update the Sheet.</p>
@@ -1888,6 +1904,59 @@
       });
     }
 
+    // 5 — Break-even progress for current month
+    const beMonthly = Number(settings.breakEvenMonthly)||0;
+    if(beMonthly > 0){
+      const today = new Date();
+      const monthStr = today.toISOString().slice(0,7);
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+      const dayOfMonth = today.getDate();
+      const daysLeft = daysInMonth - dayOfMonth;
+      const monthSales = sales.filter(s=>s.status==='Completed'&&s.date.startsWith(monthStr));
+      const monthProfit = monthSales.reduce((a,s)=>a+s.profit,0);
+      const pct = Math.min(100, Math.round(monthProfit/beMonthly*100));
+      const monthName = today.toLocaleDateString('en-KE',{month:'long'});
+      const remaining = beMonthly - monthProfit;
+      // Progress bar HTML
+      const barColor = pct>=100?'var(--green)':pct>=50?'#f9a825':'var(--red)';
+      const progressBar = `
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:4px;">
+            <span style="color:${barColor};">${pct}% covered</span>
+            <span style="color:var(--muted);">KES ${Math.round(monthProfit).toLocaleString()} / KES ${beMonthly.toLocaleString()}</span>
+          </div>
+          <div style="height:7px;background:#e8e5dd;border-radius:999px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;transition:width .4s;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">${daysLeft} day${daysLeft!==1?'s':''} left in ${monthName}</div>
+        </div>`;
+      if(pct >= 100){
+        insights.push({
+          icon:'🎯',
+          type:'focus',
+          title:`Break-even covered — <span style="color:var(--green);font-weight:800;">+KES ${Math.round(monthProfit-beMonthly).toLocaleString()} pure profit</span>`,
+          body:`You've passed your KES ${beMonthly.toLocaleString()} fixed cost target for ${monthName}. Every sale from here is 100% profit. Consider reinvesting the surplus into new stock.${progressBar}`
+        });
+      } else if(daysLeft > 0){
+        const avgProfitPerDay = dayOfMonth > 0 ? monthProfit/dayOfMonth : 0;
+        const projectedMonthEnd = avgProfitPerDay * daysInMonth;
+        const onTrack = projectedMonthEnd >= beMonthly;
+        insights.push({
+          icon: onTrack ? '📈' : '⚡',
+          type: onTrack ? 'focus' : 'attention',
+          title:`Break-even: ${pct}% covered in ${monthName}`,
+          body:`KES ${Math.round(remaining).toLocaleString()} still needed to cover fixed costs. At your current pace (KES ${Math.round(avgProfitPerDay).toLocaleString()}/day profit) you are ${onTrack?'<strong>on track</strong> to cover costs by month end':'<strong>behind pace</strong> — need KES '+Math.round(remaining/daysLeft).toLocaleString()+' profit/day from today'}.${progressBar}`
+        });
+      } else {
+        insights.push({
+          icon: pct>=100?'🎯':'📉',
+          type: pct>=100?'focus':'attention',
+          title:`${monthName} closed at ${pct}% of break-even`,
+          body:`Ended ${monthName} with KES ${Math.round(monthProfit).toLocaleString()} profit against a KES ${beMonthly.toLocaleString()} target. ${pct>=100?'Target met!':'Review which expenses can be reduced next month.'}`
+        });
+      }
+    }
+
     const bgMap = {focus:'#f0faf7', attention:'#fdf3f0', opportunity:'#f5f3ff'};
     const borderMap = {focus:'var(--green)', attention:'var(--red)', opportunity:'#6c47ff'};
 
@@ -2100,6 +2169,7 @@
     renderProductComparison();
     renderBranchKPIs();
     buildNotifications();
+    buildAnalyticsMonthPicker();
     // Map is rendered on demand (geocoding is async/slow) — auto-render if already initialised
     if(leafletMap) renderOrderMap();
   }
@@ -2291,6 +2361,66 @@
   }
 
   // ---------- Non-sale Sheet sync ----------
+
+  // Build a flat array of all zone entries for both branches
+  function buildZoneRows(){
+    const rows = [];
+    // Nairobi zones
+    Object.entries(DELIVERY_ZONES).forEach(([loc, fee])=>{
+      rows.push({ branch:'Nairobi (Adams Arcade, Diodori)', location: toTitleCase(loc), fee });
+    });
+    // Thika Town zones
+    Object.entries(THIKA_DELIVERY_ZONES).forEach(([loc, fee])=>{
+      rows.push({ branch:'Thika Town', location: toTitleCase(loc), fee });
+    });
+    return rows;
+  }
+
+  function toTitleCase(str){
+    return str.replace(/\b\w/g, c=>c.toUpperCase());
+  }
+
+  async function pushDeliveryZonesToSheet(statusEl){
+    if(!settings.webhookUrl){
+      if(statusEl){ statusEl.className='status-line show fail'; statusEl.textContent='Link a Google Sheet first.'; }
+      return;
+    }
+    if(statusEl){ statusEl.className='status-line show'; statusEl.textContent='Building zone list…'; }
+    const zones = buildZoneRows();
+    if(statusEl) statusEl.textContent=`Pushing ${zones.length} zones to Sheet…`;
+    try{
+      await fetch(settings.webhookUrl,{
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ __type:'delivery_zones', zones })
+      });
+      if(statusEl){ statusEl.className='status-line show ok'; statusEl.textContent=`✓ ${zones.length} delivery zones pushed to Sheet — edit fees there anytime, pull to update the dashboard.`; }
+    }catch(e){
+      if(statusEl){ statusEl.className='status-line show fail'; statusEl.textContent='Push failed: '+e.message; }
+    }
+  }
+
+  async function pullDeliveryZonesFromSheet(){
+    if(!settings.webhookUrl) return;
+    try{
+      const j = await scriptTagGet(settings.webhookUrl+'?action=fetch_zones');
+      if(!j||j.status!=='ok'||!Array.isArray(j.rows)||!j.rows.length) return;
+      let nUpdated = 0;
+      j.rows.forEach(r=>{
+        const branch = String(r.from_shop_branch||r.branch||'').toLowerCase();
+        const loc    = String(r.to_location||r.location||'').toLowerCase().trim();
+        const fee    = parseInt(r['suggested_fee_(kes)']||r.fee||r['suggested fee (kes)']||0);
+        if(!loc||!fee) return;
+        if(branch.includes('thika')){
+          if(THIKA_DELIVERY_ZONES[loc] !== fee){ THIKA_DELIVERY_ZONES[loc] = fee; nUpdated++; }
+        } else {
+          if(DELIVERY_ZONES[loc] !== fee){ DELIVERY_ZONES[loc] = fee; nUpdated++; }
+        }
+      });
+      if(nUpdated>0) console.log(`Delivery zones: ${nUpdated} fees updated from Sheet`);
+    }catch(e){ console.error('pullDeliveryZones failed',e); }
+  }
+
   async function pushToSheetTyped(data){
     if(!settings.webhookUrl) return;
     try{
@@ -2424,6 +2554,7 @@
       renderAll();
       // Also sync expenses, returns, inventory, riders
       await pullNonSaleData();
+      await pullDeliveryZonesFromSheet();
       renderAll();
       pill.className='auto-sync-pill done';
       txt.textContent = imported>0 ? '↓ '+imported+' new' : '✓ Up to date';
@@ -2621,14 +2752,21 @@
       const driveDirectUrl = item.imageUrl ? toDriveDirectUrl(item.imageUrl) : null;
       const imgSrc = driveDirectUrl || item.image || null;
       const imgBadge = driveDirectUrl ? '☁️' : (item.image ? '💾' : '');
+      const safeItemName = JSON.stringify(item.name);
+      const safeSrc = imgSrc ? imgSrc.replace(/'/g, "\'") : '';
+      const modalTrigger = imgSrc ? `document.getElementById('stockImgModal').style.display='flex';document.getElementById('stockImgModalImg').src='${safeSrc}';document.getElementById('stockImgModalName').textContent=${safeItemName};` : '';
       const imgCell = imgSrc
         ? `<td>
-            <div style="position:relative;width:48px;height:48px;">
-              <img src="${imgSrc}" style="width:48px;height:48px;object-fit:cover;border-radius:9px;border:1px solid var(--line);cursor:pointer;" onclick="document.getElementById('stockImgModal').style.display='flex';document.getElementById('stockImgModalImg').src='${imgSrc}';document.getElementById('stockImgModalName').textContent=${JSON.stringify(item.name)};" title="Click to enlarge — ${driveDirectUrl?'Synced via Google Drive (works on all devices)':'Local only — add a Drive URL to sync across devices'}">
-              ${imgBadge?`<span style="position:absolute;bottom:2px;right:2px;font-size:10px;background:rgba(0,0,0,0.55);border-radius:4px;padding:1px 3px;">${imgBadge}</span>`:''}
+            <div onclick="${modalTrigger}" title="${driveDirectUrl?'☁️ Google Drive image — click to enlarge':'💾 Local image — click to enlarge'}"
+              style="position:relative;width:48px;height:48px;cursor:pointer;border-radius:9px;overflow:hidden;border:1.5px solid var(--line);background:#f1efe9;flex-shrink:0;">
+              <img src="${imgSrc}" alt="📦"
+                style="width:48%;height:48px;object-fit:cover;width:100%;"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:22px;background:#f1efe9;">📦</div>
+              ${imgBadge?`<span style="position:absolute;bottom:2px;right:2px;font-size:9px;background:rgba(0,0,0,0.6);color:#fff;border-radius:3px;padding:1px 3px;">${imgBadge}</span>`:''}
             </div>
            </td>`
-        : `<td><div style="width:48px;height:48px;border-radius:9px;background:#f1efe9;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;" title="No image — use '+ Add stock' to add one">📦</div></td>`;
+        : `<td><div style="width:48px;height:48px;border-radius:9px;background:#f1efe9;display:flex;align-items:center;justify-content:center;font-size:22px;border:1.5px dashed var(--line);" title="No image">📦</div></td>`;
       const status = item.quantity===0
         ? '<span class="badge" style="background:var(--red-dim);color:var(--red);">Out of stock</span>'
         : item.quantity<=item.minQty
@@ -2818,6 +2956,63 @@
       });
     }catch(e){ console.error('platform comp chart failed',e); }
   }
+  // ---------- Analytics month filter ----------
+  let analyticsMonth = 'all'; // 'all' or 'YYYY-MM'
+
+  function buildAnalyticsMonthPicker(){
+    const sel = document.getElementById('analyticsMonthFilter');
+    const yearSel = document.getElementById('analyticsYearFilter');
+    if(!sel) return;
+    // Collect all months from sales + expenses
+    const months = new Set();
+    sales.forEach(s=>{ if(s.date) months.add(s.date.slice(0,7)); });
+    expenses.forEach(e=>{ if(e.date) months.add(e.date.slice(0,7)); });
+    const sorted = [...months].sort().reverse(); // newest first
+    // Get unique years
+    const years = [...new Set(sorted.map(m=>m.slice(0,4)))];
+    // Rebuild month options
+    sel.innerHTML = '<option value="all">All time</option>' +
+      sorted.map(m=>{
+        const [y,mo] = m.split('-');
+        const label = new Date(parseInt(y), parseInt(mo)-1, 1).toLocaleDateString('en-KE',{month:'long',year:'numeric'});
+        return `<option value="${m}">${label}</option>`;
+      }).join('');
+    // Set current selection
+    if(analyticsMonth !== 'all'){
+      sel.value = analyticsMonth;
+    }
+  }
+
+  window.applyAnalyticsFilter = function(){
+    const sel = document.getElementById('analyticsMonthFilter');
+    const clearBtn = document.getElementById('analyticsClearBtn');
+    const label = document.getElementById('analyticsPeriodLabel');
+    analyticsMonth = sel ? sel.value : 'all';
+    if(analyticsMonth !== 'all'){
+      if(clearBtn) clearBtn.style.display='block';
+      if(label){
+        const [y,m] = analyticsMonth.split('-');
+        label.textContent = '→ Showing: ' + new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('en-KE',{month:'long',year:'numeric'});
+      }
+    } else {
+      if(clearBtn) clearBtn.style.display='none';
+      if(label) label.textContent='';
+    }
+    renderBreakEven();
+    renderExpenses();
+    renderMonthlyChart();
+    renderTimeAnalysis();
+  };
+
+  function analyticsFilteredSales(){
+    if(analyticsMonth==='all') return sales;
+    return sales.filter(s=>s.date&&s.date.startsWith(analyticsMonth));
+  }
+  function analyticsFilteredExpenses(){
+    if(analyticsMonth==='all') return expenses;
+    return expenses.filter(e=>e.date&&e.date.startsWith(analyticsMonth));
+  }
+
   function renderMonthlyChart(){
     const byMonth = {};
     sales.filter(s=>s.status==='Completed').forEach(s=>{
@@ -2883,45 +3078,83 @@
     const monthly = Number(settings.breakEvenMonthly)||0;
     document.getElementById('beMonthly').textContent = fmtKES(monthly);
     const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+
+    // Use the analytics period filter
+    const periodStr = analyticsMonth !== 'all' ? analyticsMonth : today.toISOString().slice(0,7);
+    const [py, pm] = periodStr.split('-').map(Number);
+    const daysInMonth = new Date(py, pm, 0).getDate();
+    const isPastMonth = analyticsMonth !== 'all' && periodStr < today.toISOString().slice(0,7);
+
     const completed = sales.filter(s=>s.status==='Completed');
-    const avgProfit = completed.length? completed.reduce((a,s)=>a+s.profit,0)/completed.length : 0;
+    const avgProfit = completed.length ? completed.reduce((a,s)=>a+s.profit,0)/completed.length : 0;
     const ordersNeeded = monthly>0&&avgProfit>0 ? Math.ceil(monthly/avgProfit/daysInMonth) : 0;
     document.getElementById('beOrdersDay').textContent = ordersNeeded||'—';
-    const monthStr = today.toISOString().slice(0,7);
-    const thisMonth = completed.filter(s=>s.date.startsWith(monthStr));
-    const monthProfit = thisMonth.reduce((a,s)=>a+s.profit,0);
+
+    const periodSales = completed.filter(s=>s.date&&s.date.startsWith(periodStr));
+    const monthProfit = periodSales.reduce((a,s)=>a+s.profit,0);
+
+    // Update label to show which month
+    const monthLabel = new Date(py, pm-1, 1).toLocaleDateString('en-KE',{month:'long',year:'numeric'});
+    const profitEl = document.getElementById('beThisMonthProfit');
+    const profitCard = profitEl?.closest('div');
+    if(profitCard){
+      const lbl = profitCard.querySelector('div');
+      if(lbl&&lbl.textContent.includes('month')) lbl.textContent = monthLabel+' profit';
+    }
     document.getElementById('beThisMonthProfit').textContent = fmtKES(monthProfit);
+
     const card = document.getElementById('beStatusCard');
     const status = document.getElementById('beStatus');
     const insight = document.getElementById('beInsight');
-    if(!monthly){ insight.textContent='Set monthly fixed costs in ⚙ Sheet sync to see your break-even analysis.'; status.textContent='—'; return; }
+    if(!monthly){ insight.textContent='Set monthly fixed costs in ⚙ Settings to see your break-even analysis.'; status.textContent='—'; return; }
     const pct = monthly>0?(monthProfit/monthly*100):0;
     if(monthProfit>=monthly){
       card.style.background='var(--green-dim)'; status.style.color='var(--green)'; status.textContent='✓ Covered';
-      insight.textContent=`You've covered your fixed costs this month with KES ${Math.round(monthProfit-monthly).toLocaleString()} to spare. Every additional sale is pure profit.`;
+      insight.textContent=`${monthLabel}: Fixed costs covered with KES ${Math.round(monthProfit-monthly).toLocaleString()} to spare.`;
     } else {
       card.style.background='var(--red-dim)'; status.style.color='var(--red)'; status.textContent=`${Math.round(pct)}% covered`;
       const gap = monthly-monthProfit;
-      const daysLeft = daysInMonth - today.getDate();
-      insight.textContent=`Still KES ${Math.round(gap).toLocaleString()} short of break-even. You have ${daysLeft} days left this month — need ${daysLeft>0?Math.ceil(gap/avgProfit/daysLeft):'?'} more orders per day at current margins.`;
+      const daysLeft = isPastMonth ? 0 : daysInMonth - today.getDate();
+      insight.textContent = isPastMonth
+        ? `${monthLabel}: Finished KES ${Math.round(gap).toLocaleString()} short of break-even.`
+        : `Still KES ${Math.round(gap).toLocaleString()} short. ${daysLeft} days left — need ${daysLeft>0&&avgProfit>0?Math.ceil(gap/avgProfit/daysLeft):'?'} more orders per day.`;
     }
   }
 
   // ---------- Expense tracker ----------
   function renderExpenses(){
-    document.getElementById('expCount').textContent = expenses.length+' entries';
+    const filtered = analyticsFilteredExpenses();
+    const isFiltered = analyticsMonth !== 'all';
+    const periodLabel = isFiltered ? (() => {
+      const [y,m] = analyticsMonth.split('-').map(Number);
+      return new Date(y,m-1,1).toLocaleDateString('en-KE',{month:'short',year:'numeric'});
+    })() : 'this month';
+
+    document.getElementById('expCount').textContent = (isFiltered ? filtered.length : expenses.length)+' entries'+(isFiltered?' · '+periodLabel:'');
     const total = expenses.reduce((a,e)=>a+(Number(e.amount)||0),0);
-    const now = new Date().toISOString().slice(0,7);
-    const monthTotal = expenses.filter(e=>e.date.startsWith(now)).reduce((a,e)=>a+(Number(e.amount)||0),0);
+    const periodTotal = filtered.reduce((a,e)=>a+(Number(e.amount)||0),0);
+
     document.getElementById('expTotal').textContent = fmtKES(total);
-    document.getElementById('expMonth').textContent = fmtKES(monthTotal);
-    const cats = {}; expenses.forEach(e=>{ cats[e.category]=(cats[e.category]||0)+(Number(e.amount)||0); });
+    document.getElementById('expMonth').textContent = fmtKES(periodTotal);
+
+    // Update "this month" label
+    const monthLabelEl = document.querySelector('#expMonth')?.closest('[style*="border"]')?.querySelector('div');
+    if(monthLabelEl&&monthLabelEl.textContent.includes('month')){
+      monthLabelEl.textContent = isFiltered ? periodLabel : 'This month';
+    }
+
+    const cats = {};
+    filtered.forEach(e=>{ cats[e.category]=(cats[e.category]||0)+(Number(e.amount)||0); });
     const topCat = Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
     document.getElementById('expTopCat').textContent = topCat?topCat[0]:'—';
+
     const body = document.getElementById('expBody');
-    if(!expenses.length){ body.innerHTML='<tr class="empty-row"><td colspan="5">No expenses logged yet.</td></tr>'; return; }
-    const sorted=[...expenses].sort((a,b)=>b.date.localeCompare(a.date));
+    const display = isFiltered ? filtered : expenses;
+    if(!display.length){
+      body.innerHTML=`<tr class="empty-row"><td colspan="5">${isFiltered?'No expenses in '+periodLabel+'.':'No expenses logged yet.'}</td></tr>`;
+      return;
+    }
+    const sorted=[...display].sort((a,b)=>b.date.localeCompare(a.date));
     body.innerHTML=sorted.map(e=>`<tr>
       <td>${e.date}</td><td><span class="badge" style="background:#f1efe9;color:var(--dark);">${e.category}</span></td>
       <td>${escapeHtml(e.description||'—')}</td><td class="mono profit-neg">−${fmtKES(e.amount)}</td>
@@ -3246,14 +3479,20 @@
 
   // ---------- Delivery fee suggestion (from Diodori, behind Adams Arcade, Ngong Rd) ----------
   // Recalibrated from approx -1.293S, 36.773E — behind Adams Arcade
+  // ============================================================
+  // UNIFIED NAIROBI DELIVERY FEE DATABASE
+  // All zones, areas, estates, streets and roads merged
+  // Calibrated from Diodori, Lagiri Rd (behind Adams Arcade)
+  // ============================================================
   const DELIVERY_ZONES = {
-    // Zone 1: 0-5km — KES 100-150 (very close)
+    // Zone 1: 0-5km — KES 100-150
     'adams arcade':100,'kilimani':120,'hurlingham':120,'lavington':130,
     'woodley':120,'kibera':130,"ng'ando":120,'dagoretti':130,'riruta':130,
     'olympic':130,'kawangware':140,'mugumoini':130,'dagoretti corner':130,
     'jamhuri':120,'lindi':130,'south b':140,'nairobi west':140,
-    'kileleshwa':140,'kabiro':130,
-    // Zone 2: 5-10km — KES 150-200 (near)
+    'kileleshwa':140,'kabiro':130,'ngumo':130,'ngumo estate':130,
+    'woodley estate':120,'kibra':130,'nairobi west estate':140,
+    // Zone 2: 5-10km — KES 150-200
     'langata':160,'karen':170,'south c':160,'upper hill':160,'uthiru':160,
     'waithaka':160,'ngong road':150,'madaraka':160,'westlands':190,
     'cbd':190,'city centre':190,'cbd / city centre':190,'industrial area':160,
@@ -3263,7 +3502,42 @@
     'shauri moyo':190,'ziwani':190,'pangani':190,'majengo':190,
     'spring valley':180,'loresho':180,'eastleigh':200,'riruta satellite':160,
     'bomas of kenya area':160,'galleria area':190,'siaya road':160,
-    // Zone 3: 10-15km — KES 200-250 (medium)
+    'riverside':190,'karen hardy':170,'hardy':170,'hardy estate':170,
+    'kangemi':170,'prestige':180,'nairobi hill':180,'state house area':180,
+    'racecourse':180,'nairobi racecourse':180,'city park':190,
+    'bahati':190,'harambee':190,'nairobi cbd':190,'upper hill area':160,
+    'ridgeways':220,'rosslyn':220,'langata south':165,
+    // Zone 2 streets & roads (Adams Arcade / Kilimani / Lavington / Westlands)
+    'wood avenue':130,'riara road':130,'riara ridge':140,'suna road':130,
+    'kibagare way':130,'kasuku road':130,'kindaruma road':140,
+    'argwings kodhek road':140,'argwings kodhek':140,'olenguruone avenue':140,
+    'muringa road':140,'galana road':140,'chania avenue':130,
+    'church road kilimani':140,'gatemi road':130,'kakamega road':140,
+    'kirichwa road':140,'kirichwa crescent':140,'rose avenue':130,
+    'masai road':140,'ole shapara road':140,'kihara road':140,
+    'mararo road':140,'milimani road':150,'mamlaka road':150,
+    'lenana road':150,'elgeyo marakwet road':150,'hospital road':150,
+    'bishops road':150,'ralph bunche road':150,'langata road':150,
+    'mbagathi way':150,'mokoyeti road':150,'lusaka road':150,
+    'kandara road':170,'kandara':170,'oloitoktok road':170,
+    'argwings':160,'bishop road':160,'ngong avenue':160,
+    'elgeyo marakwet':160,'nyerere road':190,'processional way':190,
+    'ragati road':175,'upperhill road':165,'mara road':175,
+    'karen road':165,'bogani road':165,'marula lane':165,'olerai':165,
+    'mukoma road':160,'laikipia road':165,'ngong hills':180,
+    'luriani road':150,'lusaka avenue':150,'ole dume road':150,
+    'enterprise road':160,'mbagathi':150,'muchai drive':140,
+    'langata link road':160,'magadi road':170,'ngong road west':160,
+    'riverside drive':190,'raphta road':200,'rhaphta road':200,
+    'chiromo lane':200,'chiromo road':200,'westlands road':200,
+    'peponi road':200,'james gichuru road':190,'lower kabete road':190,
+    'ring road westlands':200,'general mathenge drive':200,'general mathenge':200,
+    'woodvale grove':200,'waiyaki way':190,'church road westlands':200,
+    'ojijo road':190,'muthangari drive':190,'spring valley road':185,
+    'gitanga road':185,'gitanga':185,'dagoretti road':165,
+    'milimani road westlands':190,'un avenue':190,'un crescent':190,
+    'limuru road':200,'limuru road nairobi':200,
+    // Zone 3: 10-15km — KES 200-250
     'parklands':210,'highrise':200,'huruma':210,'mathare':210,'baba dogo':210,
     'lucky summer':220,'ruaraka':220,'thome':220,'muthaiga':220,'gigiri':230,
     'runda':230,'nyari':230,'kitisuru':230,'kyuna':220,'donholm':230,
@@ -3271,110 +3545,303 @@
     'makongeni':220,'embakasi':230,'fedha':230,'tassia':230,'umoja':240,
     'kayole':240,'komarock':240,'syokimau':230,'mombasa road':220,
     'mlolongo':250,'pipeline':240,'kikuyu':230,'ngong town':220,
-    // Zone 4: 15-20km — KES 250-300 (far)
+    'two rivers area':220,'village market area':220,'garden city area':220,
+    'sarit centre area':200,'junction area':190,'yaya centre area':180,
+    't-mall area':180,'lavington mall area':185,'langata shopping':165,
+    'lower kabete':230,'upper kabete':230,'ofafa jericho':220,
+    'jogoo road':210,'lunga lunga road':210,'enterprise':230,
+    'haile selassie avenue':200,'kenyatta avenue':200,'moi avenue':200,
+    'tom mboya street':200,'university way':200,'river road':200,
+    'ronald ngala street':200,'accra road':200,'luthuli avenue':200,
+    'harambee avenue':200,'parliament road':200,'kimathi street':200,
+    'standard street':200,'wabera street':200,'muindi mbingu street':200,
+    'city hall':200,'city hall way':200,'loita street':200,
+    'monrovia street':200,'banda street':200,'tubman road':200,
+    'outering road':230,'eastern bypass':235,'outer ring road':235,
+    'kangundo road':235,'manyanja road':235,'nairobi south bypass':225,
+    // Zone 3 streets — Westlands far / Parklands / Muthaiga area
+    'forest lane':210,'hatheru road':210,'hatheru rd':210,'school lane':210,
+    'mpaka road':220,'mwanzi road':220,'mvuli road':220,'mvuli rd':220,
+    'shanzu road':210,'shanzu rd':210,'matundu lane':210,
+    'grevillea grove':220,'brookside drive':220,'karuna close':230,
+    'parklands road':220,'ring road parklands':225,
+    'third parklands avenue':225,'first parklands avenue':220,
+    'second parklands avenue':220,'fourth parklands avenue':225,
+    'sixth avenue parklands':225,'woodlands road':220,
+    'muthaiga road':225,'muthaiga close':225,'cianda road':220,
+    'mwanzi':220,'western ridge':225,'ridgeways road':225,
+    'rosslyn grove':225,'rosslyn development':225,'rosslyn ridge':225,
+    'rosslyn close':225,'st. austin road':220,'st austin road':220,
+    'banana hill road':220,'un gigiri':230,'un drive':230,
+    'peponi drive':215,'regen':215,'uthiru regen':175,
+    'mountain view estate':175,'wangige':190,'lower kabete road':215,
+    'limuru road parklands':220,'ojijo':205,'3rd parklands avenue':225,
+    'parklands avenue':220,'gitanga':185,'ngecha road':200,
+    'redhill road':220,'ruaka road':290,'karura forest area':240,
+    'nairobi bypass':230,'northern bypass':230,
+    // Zone 4: 15-20km — KES 250-300
     'kasarani':260,'roysambu':260,'zimmerman':270,'marurui':270,'mwiki':270,
-    'ruai':280,'njiru':280,'dandora':270,"mihang'o":280,'utawala':280,
-    'kahawa':280,'kahawa west':280,'kahawa sukari':280,'thika road':290,
-    'athi river':320,'kitengela':310,'ruaka':300,'thindigua':300,
-    'kiambu road':290,'karura':250,
-    // Zone 5: 20km+ — KES 300-400 (very far)
-    'githurai':300,'ruiru':330,'kiambu town':360,'limuru':390,
+    'ruai':280,'njiru':280,'dandora':270,"mihang'o":280,'mihango':280,
+    'utawala':280,'kahawa':280,'kahawa west':280,'kahawa sukari':280,
+    'thika road':290,'athi river':320,'kitengela':310,'ruaka':300,
+    'thindigua':300,'kiambu road':290,'karura':250,
+    'kamiti road':270,'banana':260,'githunguri road':270,'tigoni road':300,
+    'witeithie':270,'membley':260,'membley estate':260,'eastern bypass far':280,
+    'juja road':280,'kenyatta road thika':290,'limuru':290,
+    // Zone 5: 20km+ — KES 300-400
+    'githurai':300,'ruiru':330,'kiambu town':360,'limuru town':390,
+    'juja':340,'thika':380,'ruiru town':330,'kiambu':360,'tigoni':350,
+    'banana hill':290,'githunguri':310,'gatundu road':290,
+    // ── Kilimani / Upper Hill roads (Zone 1-2: KES 130-170) ──
+    'denis pritt road':155,'denis pritt rd':155,'denis pritt':155,
+    'joseph kangethe road':150,'joseph kangethe':150,
+    'james gichuru':190,'lower hill road':160,'upper hill road':165,
+    'brian gitau road':160,'david osieli road':160,'joe wanjui road':160,
+    'jakaya kikwete road':165,'jakaya kikwete':165,'utalii street':190,
+    'hospital hill road':155,'ngong crescent':145,'james gichuru rd':190,
+    'kabarnet road':155,'kabarnet':155,'kabarnet lane':155,
+    'olenguruone road':140,'ole odume road':145,'ole odume':145,
+    'convent drive':140,'dakar road':160,'loita street':200,
+    'haile selassie':200,'valley arcade':155,'valley arcade rd':155,
+    'kanjata road':150,'kanjata':150,'murumba road':145,
+    'rhapta':200,'rhapta road':200,'raphta':200,
+    'james gichuru road lavington':185,'james gichuru road westlands':190,
+    'waiyaki':190,'james gichuru westlands':190,
+    // ── Westlands streets (Zone 2-3: KES 190-225) ──
+    'kikambala road':210,'kikambala rd':210,'kikambala':210,
+    'vihiga road':210,'vihiga rd':210,'vihiga':210,
+    'lantana road':210,'lantana rd':210,'lantana':210,
+    'quarry road':210,'quarry rd':210,'spring valley close':185,
+    'statehouse road':185,'state house road':185,'state house crescent':185,
+    'state house avenue':185,'state house close':185,
+    'ring road kilimani':160,'ring road lavington':160,'ring road':175,
+    'maringa road':145,'muringa':140,'lower kabete':215,
+    'naivasha road':185,'old naivasha road':185,
+    'lavington close':135,'lavington green':135,'lavington green centre':135,
+    'sports road':220,'sports road westlands':220,
+    'parklands grove':220,'parklands close':225,
+    'fourth avenue':220,'fifth avenue':220,'seventh avenue':225,
+    'third avenue':220,'second avenue':220,'first avenue':220,
+    'link road westlands':210,'school lane westlands':210,
+    'james finlay drive':210,'james finlay':210,
+    'garden estate road':225,'highridge road':180,'highridge close':180,
+    'valley road':190,'valley road nairobi':190,
+    'jakaya':165,'gitanga close':185,'state house':185,
+    'kirawa road':220,'kirawa':220,'peponi close':200,
+    'ridge road':220,'ridge court':220,'spring court':185,
+    'nairobi school road':210,'nairobi school':210,
+    'loresho ridge':185,'loresho close':180,'loresho estate':182,
+    'runda estate':235,'runda grove':235,'runda close':235,
+    'runda mumwe':235,'old muthaiga':225,'old muthaiga road':225,
+    'muthaiga north':225,'muthaiga south':222,
+    // ── Karen / Langata specific roads (Zone 1-2: KES 150-175) ──
+    'langata link':160,'langata south road':165,'karen plains':170,
+    'karen plains road':170,'karen close':168,'Karen C':168,
+    'dagoretti road karen':165,'ngong road karen':160,
+    'hardy road':170,'hardy grove':170,'hardy close':170,
+    'kirichwa south':145,'kirichwa north':145,
+    'bomas road':155,'ololua ridge':165,'ololua':165,
+    'silanga road':165,'silanga':165,'miotoni road':165,'miotoni':165,
+    'miotoni lane':165,'banda road':165,'banda':200,
+    // ── South B / South C / Nairobi West specific (Zone 1: KES 130-155) ──
+    'haile selassie road south c':150,'haile selassie road':200,
+    'ole masai road':145,'ole masai':145,'naivasha road':185,
+    'mugumoini road':130,'mugumoini estate':130,
+    'nyayo south c':150,'nyayo south b':148,'nyayo estate road':155,
+    'south c estate':150,'south b estate':142,
+    // ── Hurlingham / Argwings (Zone 1: KES 120-145) ──
+    'hurlingham road':125,'hurlingham close':125,'hurlingham estate':120,
+    'argwings kodhek':140,'kolongolo road':130,'dagoretti corner road':130,
+    'off ngong road':135,'ng\'ando estate':122,'ng\'ando road':122,
+    // ── CBD / City Centre streets (Zone 2: KES 190-210) ──
+    'koinange street':195,'kenyatta avenue':200,'kimathi street':200,
+    'moi avenue':200,'utalii street':195,'serena nairobi':200,
+    'upper hill road':165,'lower hill road':165,
+    'taifa road':200,'mfangano street':200,'moktar daddah':200,
+    'moktar daddah street':200,'western house':200,
+    'nairobi garage road':200,'kenya re towers':200,
+    // ── Eastlands roads (Zone 3: KES 210-245) ──
+    'jogoo road eastlands':215,'mwangaza road':215,'rabai road':215,
+    'jogoo road section':215,'quarry road embakasi':235,
+    'outering road':230,'outering':230,'mombasa road embakasi':235,
+    'airport north road':235,'eastern bypass':235,
+    // ── Parklands / Highridge roads (Zone 3: KES 210-230) ──
+    'parklands avenue':220,'parklands grove':220,'parklands close':222,
+    'ojijo':205,'parklands road junction':215,
+    'st austin road':218,'st austin':218,
+    'highridge avenue':180,'highridge close':180,
+    // ── Additional named roads not in base list ──
+    'kiambu road lavington':165,'kiambu road westlands':215,
+    'ngong road kilimani':140,'ngong road lavington':140,
+    'ngong road karen':160,'ngong road junction':155,
+    'waiyaki way westlands':195,'waiyaki way kabete':185,
+    'lower kabete road junction':215,'nairobi bypass':230,
   };
 
-  // Thika Town delivery zones (from Thika Town CBD, ~-1.033S, 37.069E)
+  // Thika Town delivery zones (from Thika Town CBD)
   const THIKA_DELIVERY_ZONES = {
-    // Zone 1: 0-4km — KES 80-120 (Thika Town)
-    'thika town':80,'thika cbd':80,'thika':80,'biashara street':80,'kenyatta avenue thika':80,
-    'ziwani thika':100,'makongeni thika':100,'township':80,'ngoingwa':110,
-    'kiandutu':110,'gatuanyaga':120,'landless':120,'hospital road thika':100,
-    'thika stadium area':100,'thika high road':120,
-    // Zone 2: 4-10km — KES 130-180
+    'thika town':80,'thika cbd':80,'thika':80,'biashara street':80,
+    'kenyatta avenue thika':80,'ziwani thika':100,'makongeni thika':100,
+    'township':80,'ngoingwa':110,'kiandutu':110,'gatuanyaga':120,
+    'landless':120,'hospital road thika':100,'thika stadium area':100,
+    'thika high road':120,'thika town centre':80,'thika market':80,
     'juja':150,'juja farm':160,'witeithie':150,'kamenu':160,'mugutha':160,
     'thirika':150,'gatundu road':160,'kakuzi':170,'thika road thika':130,
-    // Zone 3: 10-20km — KES 180-250
     'ruiru':190,'gachororo':200,'githurai':210,'thika road nairobi':220,
-    'ngoliba':230,'mang\'u':220,'gatundu':240,'kiambu':240,
-    // Zone 4: 20-35km — KES 250-350
+    "ngoliba":230,"mang'u":220,'gatundu':240,'kiambu':240,
     'kasarani':270,'roysambu':280,'zimmerman':290,'kahawa':280,
     'kahawa west':280,'kiambu town':300,'westlands':320,'cbd':330,
     'city centre':330,'cbd / city centre':330,'parklands':310,
     'nairobi cbd':330,'nairobi westlands':320,
-    // Zone 5: 35km+ — KES 350-450
     'embakasi':360,'karen':370,'langata':380,'kilimani':350,'hurlingham':350,
     'upper hill':340,'industrial area nairobi':340,'lavington':360,
   };
 
-  function updateLocationPlaceholder(){
-    const el = document.getElementById('f_location'); if(!el) return;
-    if(formBranch==='Thika Town'){
-      el.placeholder='Type to search — Thika CBD, Ngoingwa, Juja, Ruiru…';
-    } else {
-      el.placeholder='Type to search — Westlands, Karen, estate name…';
-    }
-  }
+  // Merged alias: NAIROBI_LOCATION_FEES points to DELIVERY_ZONES for unified lookup
+  const NAIROBI_LOCATION_FEES = DELIVERY_ZONES;
 
   function getZonesForBranch(){
     return formBranch==='Thika Town' ? THIKA_DELIVERY_ZONES : DELIVERY_ZONES;
   }
 
+  function updateLocationPlaceholder(){
+    const el = document.getElementById('f_location'); if(!el) return;
+    el.placeholder = formBranch==='Thika Town'
+      ? 'Type to search — Thika CBD, Ngoingwa, Juja, Ruiru…'
+      : 'Type to search — Westlands, Karen, Forest Lane…';
+  }
+
   window.suggestDeliveryFee = function(val){
     const hint = document.getElementById('deliveryFeeHint');
     if(!val){ hint.style.display='none'; return; }
-    const key = val.toLowerCase().trim().replace(/ \(.*\)/,'');
-    const zones = getZonesForBranch();
+    const key = val.toLowerCase().trim().replace(/ \(.*\)/,'').replace(/\.$/, '');
+    const allFees = { ...NAIROBI_LOCATION_FEES, ...getZonesForBranch() };
     let fee = null;
-    if(zones[key]) fee = zones[key];
-    if(!fee){ const k = Object.keys(zones).find(z=>key.includes(z)||z.includes(key)); if(k) fee=zones[k]; }
+    if(allFees[key]) fee = allFees[key];
+    if(!fee){ const k = Object.keys(allFees).find(z=>key===z||key.includes(z)||z.includes(key)); if(k) fee=allFees[k]; }
+    if(!fee){
+      const words = key.split(/\s+/).filter(w=>w.length>3);
+      for(const w of words){
+        const k = Object.keys(allFees).find(z=>z.includes(w)||w.includes(z));
+        if(k){ fee=allFees[k]; break; }
+      }
+    }
     if(fee){
-      const zone = fee<=150?'Zone 1 · Very close (0–5km)':fee<=200?'Zone 2 · Near (5–10km)':fee<=250?'Zone 3 · Medium (10–15km)':fee<=300?'Zone 4 · Far (15–20km)':'Zone 5 · Very far (20km+)';
+      const zone = fee<=150?'Zone 1 · Very close':fee<=200?'Zone 2 · Near':fee<=250?'Zone 3 · Medium':fee<=300?'Zone 4 · Far':'Zone 5 · Very far';
       hint.style.display='block';
-      hint.innerHTML = `📍 <strong>${zone}</strong> from Adams Arcade — suggested: <span style="font-size:14px;font-family:'JetBrains Mono',monospace;">KES ${fee}</span> <button type="button" onclick="document.getElementById('f_transport').value=${fee};document.getElementById('deliveryFeeHint').style.display='none';" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:800;cursor:pointer;margin-left:6px;">Use this ✓</button>`;
+      hint.innerHTML = `📍 <strong>${zone}</strong> from Adams Arcade — suggested: <span style="font-size:14px;font-family:'JetBrains Mono',monospace;font-weight:800;">KES ${fee}</span> <button type="button" onclick="document.getElementById('f_transport').value=${fee};document.getElementById('deliveryFeeHint').style.display='none';" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:800;cursor:pointer;margin-left:6px;">Use this ✓</button>`;
     } else {
       hint.style.display='none';
     }
   };
 
   // ---------- Location autocomplete ----------
+  // ============================================================
+  // Comprehensive Nairobi location database
+  // Covers estates, suburbs, streets, roads, lanes & landmarks
+  // Fees calibrated from Diodori, Lagiri Rd (Adams Arcade)
+  // ============================================================
+
+  // Combined lookup: area/street name → delivery fee (KES)
+
+
   const ALL_NAIROBI_AREAS = [
-    // Zone 1 — Very close (KES 100–150)
+    // ZONES 1-2: Very close & near (KES 100-200)
     'Adams Arcade','Kilimani','Hurlingham','Lavington','Woodley','Kibera',
     "Ng'ando",'Dagoretti','Riruta','Olympic','Kawangware','Mugumoini',
     'Dagoretti Corner','Jamhuri','Lindi','South B','Nairobi West','Kileleshwa',
-    'Kabiro','Langata','Karen','South C',
-    // Zone 2 — Near (KES 150–200)
+    'Kabiro','Langata','Karen','South C','Ngumo','Ngumo Estate',
     'Upper Hill','Uthiru','Waithaka','Ngong Road','Madaraka','Westlands',
     'CBD','City Centre','CBD / City Centre','Industrial Area','Nyayo Estate',
     'Muthangari','Highridge','Mountain View','Kabete','Rongai','Ongata Rongai',
     'Ngong','Mutuini','Ngara','Starehe','Pumwani','Shauri Moyo','Ziwani',
     'Pangani','Majengo','Spring Valley','Loresho','Eastleigh','Riruta Satellite',
-    'Bomas of Kenya Area','Galleria Area','Siaya Road',
-    // Zone 3 — Medium (KES 200–250)
+    'Bomas of Kenya Area','Galleria Area','Hardy','Hardy Estate','Riverside',
+    'Kangemi','Ridgeways','Rosslyn','State House Area','Racecourse','City Park',
+    'Bahati','Harambee','Nairobi CBD','Prestige','Karen Hardy','Langata South',
+    // Zones 1-2 Streets & Roads
+    'Wood Avenue','Riara Road','Riara Ridge','Suna Road','Kibagare Way',
+    'Kasuku Road','Kindaruma Road','Argwings Kodhek Road','Argwings Kodhek',
+    'Olenguruone Avenue','Muringa Road','Galana Road','Chania Avenue',
+    'Church Road Kilimani','Gatemi Road','Kakamega Road','Kirichwa Road',
+    'Kirichwa Crescent','Rose Avenue','Masai Road','Ole Shapara Road',
+    'Kihara Road','Mararo Road','Milimani Road','Mamlaka Road','Lenana Road',
+    'Elgeyo Marakwet Road','Hospital Road','Bishops Road','Ralph Bunche Road',
+    'Langata Road','Mbagathi Way','Mokoyeti Road','Lusaka Road','Kandara Road',
+    'Oloitoktok Road','Argwings','Nyerere Road','Processional Way',
+    'Ragati Road','Upperhill Road','Mara Road','Karen Road','Bogani Road',
+    'Marula Lane','Olerai','Mukoma Road','Laikipia Road','Ole Dume Road',
+    'Luriani Road','Lusaka Avenue','Enterprise Road',
+    // Zone 2 Streets — Westlands / Riverside corridor
+    'Riverside Drive','Raphta Road','Rhaphta Road','Chiromo Lane','Chiromo Road',
+    'Westlands Road','Peponi Road','James Gichuru Road','Lower Kabete Road',
+    'Ring Road Westlands','General Mathenge Drive','General Mathenge',
+    'Woodvale Grove','Waiyaki Way','Church Road Westlands','Ojijo Road',
+    'Muthangari Drive','Spring Valley Road','Gitanga Road','Limuru Road',
+    'UN Avenue','UN Crescent','Bishop Road','Ngong Avenue',
+    // Zone 3: Medium (KES 200-250)
     'Parklands','Huruma','Mathare','Baba Dogo','Lucky Summer','Ruaraka',
     'Thome','Muthaiga','Gigiri','Runda','Nyari','Kitisuru','Kyuna',
     'Donholm','Buruburu','Jericho','Makadara','California','Ofafa','Makongeni',
     'Embakasi','Fedha','Tassia','Umoja','Kayole','Komarock','Syokimau',
     'Mombasa Road','Mlolongo','Pipeline','Kikuyu','Ngong Town',
-    // Zone 4 — Far (KES 250–300)
+    'Two Rivers Area','Village Market Area','Garden City Area','Sarit Centre Area',
+    'Junction Area','Yaya Centre Area','T-Mall Area','Lavington Mall Area',
+    // Zone 3 Streets — Westlands far / Parklands / Muthaiga
+    'Forest Lane','Hatheru Road','Hatheru Rd','School Lane','Mpaka Road',
+    'Mwanzi Road','Mvuli Road','Mvuli Rd','Shanzu Road','Shanzu Rd',
+    'Matundu Lane','Grevillea Grove','Brookside Drive','Karuna Close',
+    'Parklands Road','Ring Road Parklands','Third Parklands Avenue',
+    'First Parklands Avenue','Second Parklands Avenue','Fourth Parklands Avenue',
+    'Sixth Avenue Parklands','Woodlands Road','Muthaiga Road','Muthaiga Close',
+    'Cianda Road','Mwanzi','Western Ridge','Ridgeways Road','Rosslyn Grove',
+    'Rosslyn Development','Rosslyn Ridge','Rosslyn Close',
+    'Outering Road','Eastern Bypass','Jogoo Road','Outer Ring Road',
+    'Kangundo Road','Manyanja Road','Lunga Lunga Road','Enterprise',
+    'Haile Selassie Avenue','Kenyatta Avenue','Moi Avenue','Tom Mboya Street',
+    'University Way','River Road','Ronald Ngala Street','Accra Road',
+    'Luthuli Avenue','Harambee Avenue','Parliament Road','Kimathi Street',
+    'Standard Street','Wabera Street','Muindi Mbingu Street',
+    // Zone 4: Far (KES 250-300)
     'Kasarani','Roysambu','Zimmerman','Marurui','Mwiki','Ruai','Njiru',
-    'Dandora',"Mihang'o",'Utawala','Kahawa','Kahawa West','Kahawa Sukari',
+    'Dandora','Mihango','Utawala','Kahawa','Kahawa West','Kahawa Sukari',
     'Thika Road','Athi River','Kitengela','Ruaka','Thindigua','Kiambu Road',
-    'Karura',"Sarang'ombe",
-    // Zone 5 — Very far (KES 300–400)
-    'Githurai','Ruiru','Kiambu Town','Limuru',
-    // Additional well-known areas
-    'Highrise','Makongeni','Ofafa Jericho','Bahati','Harambee','Pangani',
-    'Nairobi CBD','Upper Hill Area','Westlands CBD','Village Market Area',
-    'Two Rivers Area','Garden City Area','Sarit Centre Area','Junction Area',
-    'Yaya Centre Area','T-Mall Area','Prestige Area','Lavington Mall Area',
-    'Racecourse','Nairobi Racecourse','Ngong Hills','Lenana','Langata Road',
-    'Kibra','Woodley Estate','Ngumo','Ngumo Estate','Nairobi West Estate',
-    'Kangemi','Uthiru Regen','Mountain View Estate','Ridgeways','Rosslyn',
-    'Lower Kabete','Upper Kabete','Wangige','Ruaka Town','Banana','Githunguri Road',
-    'Kiambu Town','Ruiru Town','Juja','Thika','Jomo Kenyatta Airport Area',
-    'Wilson Airport Area','Industrial Area Nairobi','Bay Area','City Park',
-    'Highpark','Westpark','Riverside','Riverside Drive','Raphta Road Area',
-    'State House Area','Nairobi Hill','Ngong Forest Area','Hardy','Hardy Estate',
-    'Langata Estate','Karen Hardy','Langata South','Mugumoini Estate',
+    'Karura','Banana','Githunguri Road','Kamiti Road','Tigoni Road',
+    // Additional Kilimani / Upper Hill roads
+    'Denis Pritt Road','Denis Pritt Rd','Joseph Kangethe Road','Valley Arcade',
+    'Kabarnet Road','Kabarnet Lane','Ole Odume Road','Kanjata Road',
+    'Convent Drive','Dakar Road','Hospital Hill Road','Murumba Road',
+    // Westlands / Parklands roads
+    'Kikambala Road','Kikambala Rd','Vihiga Road','Vihiga Rd',
+    'Lantana Road','Quarry Road','Sports Road','Kirawa Road',
+    'School Lane Westlands','James Finlay Drive','Peponi Close',
+    'Ridge Road','Garden Estate Road','Link Road Westlands',
+    'Woodlands Road','Parklands Close','Parklands Grove',
+    'First Parklands Avenue','Second Parklands Avenue',
+    'Third Parklands Avenue','Fourth Parklands Avenue',
+    'Fifth Parklands Avenue','Sixth Parklands Avenue',
+    'Ring Road Westlands','Ring Road Parklands','Ring Road Kilimani',
+    // Karen / Langata roads
+    'Karen Plains Road','Hardy Road','Hardy Grove','Hardy Close',
+    'Miotoni Road','Miotoni Lane','Silanga Road','Ololua Ridge',
+    'Karen Close','Langata Link Road','Langata South Road',
+    // CBD streets
+    'Koinange Street','Taifa Road','Mfangano Street','Moktar Daddah Street',
+    'Utalii Street','Western House','Valley Road',
+    // State House / Kilimani area
+    'State House Road','State House Avenue','State House Crescent',
+    'State House Close','Statehouse Road',
+    // South B/C / Nairobi West
+    'Ole Masai Road','Nyayo South C','South C Estate',
+    'Mugumoini Road','Mugumoini Estate',
+    // Eastlands roads
+    'Mwangaza Road','Rabai Road','Quarry Road Embakasi',
+    // Muthaiga / Runda
+    'Runda Estate','Runda Grove','Runda Close','Runda Mumwe',
+    'Old Muthaiga Road','Muthaiga North','Muthaiga South',
+    // Loresho
+    'Loresho Ridge','Loresho Close','Loresho Estate','Juja','Thika',
+    'Ruiru Town','Juja Road','Kiambu','Tigoni',
   ];
 
   let locationDropdownIdx = -1;
@@ -3397,7 +3864,8 @@
       const before = escapeHtml(m.slice(0,idx));
       const match = escapeHtml(m.slice(idx,idx+q.length));
       const after = escapeHtml(m.slice(idx+q.length));
-      const fee = (getZonesForBranch())[m.toLowerCase().trim()];
+      const key = m.toLowerCase().trim();
+      const fee = (NAIROBI_LOCATION_FEES&&NAIROBI_LOCATION_FEES[key]) || (getZonesForBranch())[key];
       const feeBadge = fee ? `<span style="float:right;font-size:10px;font-weight:700;color:var(--muted);background:var(--paper);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;">KES ${fee}</span>` : '';
       const isPast = past.includes(m) ? '<span style="font-size:9px;color:var(--green);font-weight:700;margin-left:6px;">recent</span>' : '';
       return `<div class="loc-opt" data-val="${escapeHtml(m)}" data-idx="${i}"
@@ -3407,7 +3875,14 @@
         <span>${before}<strong style="color:var(--green);">${match}</strong>${after}${isPast}</span>
         ${feeBadge}
       </div>`;
-    }).join('');
+    }).join('')
+    + `<div class="loc-opt" data-val="${escapeHtml(val)}" data-idx="${matches.length}"
+        style="padding:8px 13px;cursor:pointer;font-size:12px;border-top:1.5px solid var(--line);display:flex;align-items:center;justify-content:space-between;color:var(--muted);"
+        onmouseenter="this.style.background='#f9f8f4'" onmouseleave="this.style.background=''"
+        onclick="selectLocation('${escapeHtml(val)}')">
+        <span>📍 Use "<strong style="color:var(--ink);">${escapeHtml(val)}</strong>" as typed</span>
+        <span style="font-size:10px;">custom address</span>
+      </div>`;
     dropdown.style.display='block';
   };
 
@@ -3479,7 +3954,19 @@
     const matchPast = pastNames.filter(n=>n.toLowerCase().includes(q));
     const allMatches = [...matchInv.map(p=>({...p,fromInventory:true})), ...matchPast.map(n=>({name:n,qty:null,cost:0,fromInventory:false}))].slice(0,12);
 
-    if(!allMatches.length){ dropdown.style.display='none'; hint.style.display='none'; return; }
+    if(!allMatches.length){
+      // Show "use as typed" fallback so custom addresses always work
+      dropdown.innerHTML = `
+        <div style="padding:8px 13px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line2);">No saved location found — you can still use your address:</div>
+        <div class="loc-opt" data-val="${escapeHtml(val)}" data-idx="0"
+          style="padding:10px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;"
+          onmouseenter="this.style.background='var(--green-dim)'" onmouseleave="this.style.background=''"
+          onclick="selectLocation('${escapeHtml(val)}')">
+          <span>📍 <strong>${escapeHtml(val)}</strong></span>
+          <span style="font-size:10.5px;color:var(--muted);">Use as typed — fee estimated on save</span>
+        </div>`;
+      dropdown.style.display='block'; hint.style.display='none'; return;
+    }
 
     productDropdownIdx = -1;
     dropdown.innerHTML = allMatches.map((p,i)=>{
@@ -3883,6 +4370,10 @@
     document.getElementById('mapDateTo').value='';
     renderOrderMap();
   });
+  document.getElementById('pushZonesBtn').addEventListener('click', async ()=>{
+    await pushDeliveryZonesToSheet(document.getElementById('connStatus'));
+  });
+
   document.getElementById('forcePushAllBtn').addEventListener('click', async ()=>{
     const statusEl = document.getElementById('connStatus');
     await forcePushAll(statusEl);
@@ -4013,10 +4504,24 @@
   // Convert any Google Drive sharing URL to a direct image src
   function toDriveDirectUrl(url){
     if(!url) return null;
-    // Pattern: /file/d/FILE_ID/view
-    const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if(m) return 'https://drive.google.com/uc?export=view&id='+m[1];
-    // Already a direct URL or other format — use as-is
+    // Extract FILE_ID from any Google Drive URL format
+    let fileId = null;
+    // Standard share URL: /file/d/FILE_ID/view
+    const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if(m1) fileId = m1[1];
+    // Open URL: /open?id=FILE_ID
+    const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if(!fileId && m2) fileId = m2[1];
+    // Already a thumbnail or uc URL — extract id
+    const m3 = url.match(/thumbnail\?id=([a-zA-Z0-9_-]+)/);
+    if(!fileId && m3) fileId = m3[1];
+
+    if(fileId){
+      // Use thumbnail API — much more reliable than uc?export=view for embedding
+      // sz=w400 gives a good quality image for display
+      return 'https://drive.google.com/thumbnail?id='+fileId+'&sz=w400';
+    }
+    // Already a direct non-Drive URL — use as-is
     if(url.startsWith('http')) return url;
     return null;
   }
@@ -4056,8 +4561,18 @@
     const raw=e.target.value.trim();
     const direct=toDriveDirectUrl(raw);
     if(direct){
-      document.getElementById('st_imgData').value='drive:'+raw; // store original URL with drive: prefix
+      document.getElementById('st_imgData').value='drive:'+raw;
       updateImgPreview(direct);
+      // Test if image loads
+      const testImg = new Image();
+      testImg.onload = ()=>{}; // loaded fine
+      testImg.onerror = ()=>{
+        // Try without sz parameter
+        const fallback = direct.replace('&sz=w400','');
+        updateImgPreview(fallback);
+        document.getElementById('st_imgData').value='drive:'+raw+'::'+fallback;
+      };
+      testImg.src = direct;
     }
   });
 
@@ -4317,6 +4832,7 @@
     statusEl.className='status-line show'; statusEl.textContent='Pulling all data from Sheet…';
     await pullFromSheet();
     await pullNonSaleData();
+    await pullDeliveryZonesFromSheet();
     renderAll();
     statusEl.className='status-line show ok'; statusEl.textContent='✓ All data pulled — sales, expenses, stock, riders and returns are up to date.';
   });
