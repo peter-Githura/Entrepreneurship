@@ -1293,8 +1293,10 @@
                 <div style="font-size:11px;color:var(--muted);">In Google Drive: right-click image → Share → Anyone with the link → Copy link → paste above</div>
                 <!-- Drive folder gallery -->
                 <div id="driveFolderGallery" style="display:none;margin-top:10px;background:var(--paper);border-radius:8px;padding:10px;border:1px solid var(--line);">
-                  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <span id="galleryFolderName">Loading…</span>
+                    <input type="text" id="gallerySearch" placeholder="Search images…" oninput="filterGallery(this.value)"
+                      style="border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:11px;font-family:inherit;flex:1;max-width:180px;">
                     <button type="button" onclick="document.getElementById('driveFolderGallery').style.display='none';" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;">✕</button>
                   </div>
                   <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-height:220px;overflow-y:auto;"></div>
@@ -4897,20 +4899,39 @@
       nameEl.textContent = '📁 ' + (j.folderName||'Drive folder') + ' — ' + (j.files||[]).length + ' images';
       if(!j.files||!j.files.length){ status.textContent='No images found in this folder.'; return; }
       status.textContent='';
-      grid.innerHTML = j.files.map(f=>`
-        <div onclick="selectDriveImage('${f.directUrl}','${f.fullUrl}')"
+      // Group by subfolder for display
+      grid.innerHTML = j.files.map(f=>{
+        // Name format: "ELFBAR BC10000 / product image.jpg"
+        const parts = f.name.split(' / ');
+        const displayName = parts[parts.length-1]; // filename
+        const brand = parts.length>1 ? parts[0] : ''; // subfolder/brand
+        return `
+        <div data-galleryitem="${f.name}" onclick="selectDriveImage('${f.directUrl}','${f.fullUrl}')"
           style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:.15s;background:#f1efe9;"
           onmouseenter="this.style.borderColor='var(--green)'" onmouseleave="this.style.borderColor='transparent'"
           title="${f.name}">
-          <img src="${f.thumbnailUrl}" alt="${f.name}"
+          <img src="${f.thumbnailUrl}" alt="${displayName}"
             style="width:100%;height:70px;object-fit:cover;display:block;"
-            onerror="this.parentElement.innerHTML='<div style=\\'height:70px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);padding:4px;text-align:center;\\'>${f.name.slice(0,20)}</div>'">
-          <div style="font-size:9px;color:var(--muted);padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
-        </div>`).join('');
+            onerror="this.style.display='none'">
+          ${brand?`<div style="font-size:8px;font-weight:800;color:#fff;background:var(--dark);padding:2px 5px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;">${brand}</div>`:''}
+          <div style="font-size:9px;color:var(--muted);padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</div>
+        </div>`;
+      }).join('');
     } catch(err){
       status.textContent = 'Error: ' + err.message;
     }
   });
+
+  let loadedGalleryFiles = [];
+
+  window.filterGallery = function(q){
+    const grid = document.getElementById('galleryGrid');
+    if(!q.trim()){ grid.querySelectorAll('[data-galleryitem]').forEach(el=>el.style.display='block'); return; }
+    const lq = q.toLowerCase();
+    grid.querySelectorAll('[data-galleryitem]').forEach(el=>{
+      el.style.display = el.dataset.galleryitem.toLowerCase().includes(lq) ? 'block' : 'none';
+    });
+  };
 
   window.selectDriveImage = function(directUrl, sharingUrl){
     document.getElementById('st_imgUrl').value = sharingUrl;
