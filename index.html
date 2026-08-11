@@ -140,8 +140,8 @@
   .save-btn{width:100%;background:linear-gradient(135deg,var(--dark),var(--dark2));color:#fff;border:none;border-radius:var(--radius-sm);padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;margin-top:4px;transition:.2s;letter-spacing:0.2px;}
   .save-btn:hover{background:linear-gradient(135deg,#000,#1e1e2e);box-shadow:var(--shadow);}
   .save-btn.cancelled-mode{background:linear-gradient(135deg,var(--red),#c0392b);}
-  .save-toast{margin-top:10px;background:var(--green-dim);color:var(--green);border:1.5px solid rgba(0,160,130,0.3);border-radius:var(--radius-sm);padding:10px 13px;font-size:12.5px;font-weight:700;text-align:center;opacity:0;max-height:0;overflow:hidden;transition:opacity .25s,max-height .25s,padding .25s;}
-  .save-toast.show{opacity:1;max-height:60px;padding:10px 13px;}
+  .save-toast{margin-top:10px;background:var(--green-dim);color:var(--green);border:1.5px solid rgba(0,160,130,0.3);border-radius:var(--radius-sm);padding:10px 13px;font-size:12.5px;font-weight:700;text-align:center;opacity:0;max-height:0;overflow:hidden;transition:opacity .25s,max-height .3s,padding .25s;}
+  .save-toast.show{opacity:1;max-height:120px;padding:10px 13px;}
 
   /* ===== Table ===== */
   .table-wrap{overflow-x:auto;border-radius:var(--radius-sm);border:1.5px solid var(--line);}
@@ -608,7 +608,9 @@
         </div>
       </div>
       <div style="font-size:11.5px;color:var(--muted);margin:-4px 0 12px;line-height:1.5;">
-        Same customer ordering more than one product? Keep the order number as is and add each product as its own line — delivery fee resets to 0 automatically after the first one so it isn't counted twice.
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;padding:9px 12px;background:var(--paper);border-radius:var(--radius-sm);border-left:3px solid var(--green);line-height:1.5;">
+          <strong style="color:var(--green);">Multiple products in one order?</strong> Save this item, then tap <strong>"Add another item to order…"</strong> — the form will keep the order number, customer and rider, just clear the product and price for the next item. Delivery fee is automatically set to <strong>KES 0</strong> on additional items since it was already charged.
+        </div>
       </div>
       <div class="field">
         <label>Comment <span style="text-transform:none;font-weight:500;color:var(--muted);">— what happened with this product?</span></label>
@@ -899,6 +901,91 @@
     <div class="table-wrap">
       <table><thead><tr><th>ID</th><th>Rider</th><th>Phone</th><th>Deliveries</th><th>Platforms</th><th>Revenue delivered</th><th>Last delivery</th><th>Avg orders/day</th></tr></thead>
       <tbody id="riderPerfBody"></tbody></table>
+    </div>
+    <!-- Rider payment settlement panel -->
+    <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid var(--line);">
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:12px;">💳 Payment &amp; Settlement</div>
+
+      <!-- Controls row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="field" style="margin:0;">
+          <label>Report period</label>
+          <select id="riderReportPeriod" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+            <option value="week">This week (last 7 days)</option>
+            <option value="month">This month</option>
+            <option value="custom">Custom range (use map dates)</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Rider</label>
+          <select id="riderReportRider" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+            <option value="all">All riders</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Settlement status</label>
+          <select id="riderReportStatus" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+            <option value="all">All</option>
+            <option value="pending">Pending only</option>
+            <option value="paid">Paid only</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tip + Comment + Buttons row -->
+      <div style="display:grid;grid-template-columns:140px 1fr auto auto;gap:10px;align-items:end;margin-bottom:14px;">
+        <div class="field" style="margin:0;">
+          <label>Tip / bonus (KES)</label>
+          <input type="number" id="riderTipAmount" min="0" step="50" placeholder="0" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Owner comment / note</label>
+          <input type="text" id="riderPaymentComment" placeholder="e.g. Great week — bonus for consistent delivery times" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+        </div>
+        <button class="save-btn" id="markPaidBtn" style="background:linear-gradient(135deg,var(--green),#009070);padding:9px 16px;white-space:nowrap;margin:0;">✓ Mark as Paid</button>
+        <button class="save-btn" id="riderReportBtn" style="background:linear-gradient(135deg,#1e1e2e,#2a2a3e);padding:9px 16px;white-space:nowrap;margin:0;">📄 PDF Report</button>
+      </div>
+
+      <!-- Settlement log table -->
+      <div id="settlementLog" style="display:none;">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);margin-bottom:8px;">Settlement history</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Rider</th><th>Period</th><th>Deliveries</th>
+              <th>Fees earned</th><th>Tip</th><th>Total paid</th>
+              <th>Status</th><th>Comment</th><th>Settled by</th><th></th>
+            </tr></thead>
+            <tbody id="settlementBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="status-line" id="settlementStatus"></div>
+    </div>
+  </div>
+
+  <!-- Rider feedback modal -->
+  <div id="riderFeedbackModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:28px;box-shadow:var(--shadow-lg);position:relative;">
+      <button onclick="document.getElementById('riderFeedbackModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Rider feedback</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 16px;" id="riderFeedbackOrderLabel"></p>
+      <div class="field"><label>Delivery status</label>
+        <select id="riderFeedbackStatus" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;">
+          <option value="">On time — no issues</option>
+          <option value="Delayed">Delayed delivery</option>
+          <option value="Wrong location">Delivered to wrong location</option>
+          <option value="Damaged">Item delivered damaged</option>
+          <option value="No communication">No communication with customer</option>
+          <option value="Professional">Excellent — very professional</option>
+          <option value="Fast delivery">Exceptionally fast delivery</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Notes (optional)</label>
+        <textarea id="riderFeedbackNote" rows="3" placeholder="e.g. Boniface called the customer when gate was locked — great initiative" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;resize:vertical;"></textarea>
+      </div>
+      <button class="save-btn" id="saveRiderFeedbackBtn">Save feedback</button>
     </div>
   </div>
 
@@ -1199,8 +1286,20 @@
                   Paste a Google Drive shareable link — the image works on <strong>any device</strong>.
                   <a href="#" id="openDriveBtn" style="color:var(--green);text-decoration:none;margin-left:4px;">Open Google Drive ↗</a>
                 </div>
-                <input type="text" id="st_imgUrl" placeholder="https://drive.google.com/file/d/.../view" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;">
-                <div style="font-size:11px;color:var(--muted);margin-top:4px;">In Google Drive: right-click image → Share → Anyone with the link → Copy link → paste above</div>
+                <div style="display:flex;gap:6px;margin-bottom:6px;">
+                  <input type="text" id="st_imgUrl" placeholder="https://drive.google.com/file/d/.../view" style="flex:1;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;">
+                  <button type="button" id="browseDriveBtn" style="background:var(--dark);color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">📁 Browse folder</button>
+                </div>
+                <div style="font-size:11px;color:var(--muted);">In Google Drive: right-click image → Share → Anyone with the link → Copy link → paste above</div>
+                <!-- Drive folder gallery -->
+                <div id="driveFolderGallery" style="display:none;margin-top:10px;background:var(--paper);border-radius:8px;padding:10px;border:1px solid var(--line);">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                    <span id="galleryFolderName">Loading…</span>
+                    <button type="button" onclick="document.getElementById('driveFolderGallery').style.display='none';" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;">✕</button>
+                  </div>
+                  <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-height:220px;overflow-y:auto;"></div>
+                  <div id="galleryStatus" style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0;"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1407,6 +1506,17 @@
     <div class="status-line" id="branchStatus"></div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px;">To get lat,lng: open Google Maps, right-click your store → copy coordinates</div>
 
+    <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
+    <h3 style="font-size:14px;margin:0 0 4px;">📁 Google Drive images folder</h3>
+    <p class="desc" style="margin:0 0 10px;font-size:12px;">Paste your Drive folder ID once — then browse and pick vape images directly from the dashboard without opening Drive.</p>
+    <div class="field">
+      <label>Drive folder ID</label>
+      <input type="text" id="driveFolderInput" placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Open your Drive folder → copy the ID from the URL: drive.google.com/drive/folders/<strong>FOLDER_ID</strong></div>
+    </div>
+    <button class="ghost-btn" id="saveDriveFolderBtn" style="width:100%;">Save folder</button>
+    <div class="status-line" id="driveFolderStatus"></div>
+
     <h3 style="font-size:14px;margin:16px 0 4px;">Break-even target</h3>
     <p class="desc" style="margin:0 0 10px;">Set your total monthly fixed costs — the dashboard will calculate how many orders you need per day to cover them.</p>
     <div class="field">
@@ -1452,12 +1562,14 @@
   let inventory = [];
   let expenses = [];
   let riders = [];
+  let riderFeedback = []; // [{id, saleId, riderName, status, note, date}]
+  let riderPayments = []; // [{id, riderName, from, to, deliveries, feesEarned, tip, comment, status, settledAt, settledBy}]
   let branches = [
     { id:'NBR', name:'Nairobi', storeCoords:[-1.3018544, 36.780168], storeLabel:'Diodori, Lagiri Rd', color:'#00A082' },
     { id:'THK', name:'Thika Town', storeCoords:[-1.0332, 37.0693], storeLabel:'Thika Town Centre', color:'#3b6ef5' }
   ];
   let customerBook = {};
-  let settings = { webhookUrl: '', breakEvenMonthly: 0 };
+  let settings = { webhookUrl: '', breakEvenMonthly: 0, driveFolderId: '' };
   let users = [{ id:'USR-001', name: 'Kush', pin: '1234', role: 'admin' }];
   let currentUser = null;
   let currentRange = 'today';
@@ -1509,6 +1621,14 @@
       riders = r8 && r8.value ? JSON.parse(r8.value) : [];
     }catch(e){ riders = []; }
     try{
+      const r8b = await appStorage.get('elfancy-riderfeedback', false);
+      riderFeedback = r8b && r8b.value ? JSON.parse(r8b.value) : [];
+    }catch(e){ riderFeedback = []; }
+    try{
+      const r8c = await appStorage.get('elfancy-riderpayments', false);
+      riderPayments = r8c && r8c.value ? JSON.parse(r8c.value) : [];
+    }catch(e){ riderPayments = []; }
+    try{
       const r9 = await appStorage.get('elfancy-branches', false);
       if(r9 && r9.value){ branches = JSON.parse(r9.value); }
     }catch(e){ /* keep default branches */ }
@@ -1544,6 +1664,14 @@
   async function saveRiders(){
     try{ await appStorage.set('elfancy-riders', JSON.stringify(riders), false); }
     catch(e){ console.error('save riders failed', e); }
+  }
+  async function saveRiderFeedback(){
+    try{ await appStorage.set('elfancy-riderfeedback', JSON.stringify(riderFeedback), false); }
+    catch(e){ console.error('save rider feedback failed', e); }
+  }
+  async function saveRiderPayments(){
+    try{ await appStorage.set('elfancy-riderpayments', JSON.stringify(riderPayments), false); }
+    catch(e){ console.error('save rider payments failed', e); }
   }
   async function saveSettings(){
     try{ await appStorage.set('elfancy-settings', JSON.stringify(settings), false); }
@@ -2166,6 +2294,8 @@
     renderBreakEven();
     renderExpenses();
     renderRiderPerformance();
+    renderSettlementLog();
+    populateRiderReportDropdown();
     renderProductComparison();
     renderBranchKPIs();
     buildNotifications();
@@ -2218,16 +2348,88 @@
   }
 
   let toastTimer = null;
+  let lastSavedSession = null; // stores order-level details from most recent save
+
   function showSaveToast(entry, extra=''){
     const toast = document.getElementById('saveToast');
-    if(entry.status === 'Cancelled'){
-      toast.textContent = '✓ Logged: ' + (entry.item||'cancelled order') + extra;
-    }else{
-      toast.textContent = '✓ Saved: ' + entry.item + ' — ' + fmtKES(entry.revenue) + ' · profit ' + fmtKES(entry.profit) + extra;
-    }
+    // Store the order-level session so user can add another item
+    lastSavedSession = {
+      orderNumber: entry.orderNumber,
+      customerName: entry.customerName,
+      customerPhone: entry.customerPhone,
+      riderName: entry.riderName,
+      saleTime: entry.saleTime,
+      deliveryLocation: entry.deliveryLocation,
+      date: entry.date,
+      platform: entry.platform,
+      branch: entry.branch,
+    };
+    const successText = entry.status==='Cancelled'
+      ? '✓ Logged: '+(entry.item||'cancelled order')+extra
+      : '✓ Saved: '+entry.item+' — '+fmtKES(entry.revenue)+' · profit '+fmtKES(entry.profit)+extra;
+
+    toast.style.maxHeight='120px';
+    toast.innerHTML = `
+      <div style="margin-bottom:8px;">${successText}</div>
+      <button type="button" id="addAnotherBtn"
+        style="background:var(--dark);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;width:100%;font-family:inherit;">
+        ➕ Add another item to order ${entry.orderNumber||''}
+      </button>`;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=> toast.classList.remove('show'), 2800);
+    toastTimer = setTimeout(()=>{ toast.classList.remove('show'); toast.innerHTML=''; }, 6000);
+
+    // Wire the button immediately after injecting it
+    const btn = document.getElementById('addAnotherBtn');
+    if(btn){
+      btn.addEventListener('click', ()=>{
+        addAnotherItemToOrder();
+        toast.classList.remove('show');
+        toast.innerHTML='';
+      });
+    }
+  }
+
+  function addAnotherItemToOrder(){
+    if(!lastSavedSession) return;
+    // Restore order-level fields
+    document.getElementById('f_order').value       = lastSavedSession.orderNumber || '';
+    document.getElementById('f_customer').value    = lastSavedSession.customerName || '';
+    document.getElementById('f_phone').value       = lastSavedSession.customerPhone || '';
+    document.getElementById('f_rider').value       = lastSavedSession.riderName || '';
+    document.getElementById('f_time').value        = lastSavedSession.saleTime || '';
+    document.getElementById('f_location').value    = lastSavedSession.deliveryLocation || '';
+    document.getElementById('f_date').value        = lastSavedSession.date || todayStr();
+    // Clear product-specific fields
+    document.getElementById('f_item').value        = '';
+    document.getElementById('f_qty').value         = 1;
+    document.getElementById('f_sell').value        = '';
+    document.getElementById('f_cost').value        = '';
+    document.getElementById('f_transport').value   = 0; // already charged on first item
+    // Clear any hints
+    const ph = document.getElementById('productStockHint'); if(ph) ph.style.display='none';
+    const pd = document.getElementById('productDropdown');  if(pd) pd.style.display='none';
+    const lh = document.getElementById('deliveryFeeHint'); if(lh) lh.style.display='none';
+    // Restore platform/branch if needed
+    if(lastSavedSession.platform){
+      formPlatform = lastSavedSession.platform;
+      [...document.querySelectorAll('#platformSeg button')].forEach(b=>{
+        const isMatch = b.dataset.plat === formPlatform;
+        b.classList.toggle('on', isMatch);
+        b.style.background = isMatch ? 'var(--dark)' : '';
+        b.style.color = isMatch ? '#fff' : '';
+      });
+    }
+    updatePreview();
+    // Scroll form into view and focus the product field
+    document.getElementById('f_item').focus();
+    document.getElementById('f_item').scrollIntoView({behavior:'smooth', block:'center'});
+    // Show a hint confirming which order we're adding to
+    const orderEl = document.getElementById('f_order');
+    if(orderEl){
+      orderEl.style.borderColor = 'var(--green)';
+      setTimeout(()=>{ orderEl.style.borderColor=''; }, 2000);
+    }
   }
 
   async function handleSave(){
@@ -2323,13 +2525,19 @@
       users.map(u=>`<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)} [${u.id||'—'}]${u.role==='admin'?' · Admin':''}</option>`).join('');
   }
 
+  // Tab access by role
+  const TAB_ACCESS = {
+    admin:  ['overview','sales','stock','customers','operations','analytics','returns'],
+    staff:  ['overview','sales','stock','customers','operations','analytics','returns'],
+    viewer: ['overview','sales']
+  };
+
   function applySession(user){
     currentUser = user;
     document.getElementById('loginBg').style.display = 'none';
     document.getElementById('userChip').style.display = 'flex';
     document.getElementById('sectionTabs').style.display = 'flex';
     const avatarEl = document.getElementById('userAvatar');
-    // Use photo for Kush, initials for everyone else
     if(user.name.toLowerCase() === 'kush' && typeof KUSH_PORTRAIT !== 'undefined'){
       avatarEl.innerHTML = `<img src="${KUSH_PORTRAIT}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;">`;
       avatarEl.style.background = 'transparent';
@@ -2338,13 +2546,40 @@
       avatarEl.style.background = 'var(--yellow)';
     }
     document.getElementById('userName').textContent = user.name;
-    // Show/hide form based on role — view-only can see everything but can't save
+
+    // Role-based write access
     const canWrite = user.role === 'admin' || user.role === 'staff';
     document.getElementById('saveBtn').disabled = !canWrite;
     document.getElementById('saveBtn').style.opacity = canWrite ? '1' : '0.4';
     document.getElementById('saveBtn').title = canWrite ? '' : 'View-only access — contact admin to log sales';
-    // Only admins see the settings button
+
+    // Settings: admin only
     document.getElementById('settingsBtn').style.display = user.role === 'admin' ? 'flex' : 'none';
+
+    // Tab visibility by role
+    const allowedTabs = TAB_ACCESS[user.role] || TAB_ACCESS.viewer;
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      const tab = btn.dataset.tab;
+      const allowed = allowedTabs.includes(tab);
+      btn.style.display = allowed ? 'flex' : 'none';
+    });
+
+    // Add role badge to user chip
+    const roleColors = {admin:'var(--yellow)',staff:'var(--green)',viewer:'#6c47ff'};
+    const roleLabel = {admin:'Admin',staff:'Staff',viewer:'Viewer'};
+    let roleBadge = document.getElementById('userRoleBadge');
+    if(!roleBadge){
+      roleBadge = document.createElement('span');
+      roleBadge.id = 'userRoleBadge';
+      roleBadge.style.cssText='font-size:9px;padding:1px 6px;border-radius:999px;font-weight:800;margin-left:2px;';
+      document.getElementById('userChip').appendChild(roleBadge);
+    }
+    roleBadge.textContent = roleLabel[user.role]||user.role;
+    roleBadge.style.background = (roleColors[user.role]||'#888')+'22';
+    roleBadge.style.color = roleColors[user.role]||'#888';
+
+    // If current tab is not allowed, switch to overview
+    if(!allowedTabs.includes(currentTab)) switchTab('overview');
   }
 
   function doLogin(){
@@ -4220,6 +4455,259 @@
     return dailyVelocity;
   }
 
+  // ---------- Rider Payment Report PDF ----------
+  let pendingFeedbackSaleId = null;
+
+  function populateRiderReportDropdown(){
+    const sel = document.getElementById('riderReportRider'); if(!sel) return;
+    const riderNames = [...new Set(sales.filter(s=>s.riderName).map(s=>s.riderName))];
+    sel.innerHTML = '<option value="all">All riders</option>' +
+      riderNames.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  }
+
+  function getRiderReportRange(){
+    const period = document.getElementById('riderReportPeriod').value;
+    const today = new Date();
+    if(period==='week'){
+      const from = new Date(today); from.setDate(today.getDate()-6);
+      return {from: from.toISOString().slice(0,10), to: today.toISOString().slice(0,10)};
+    } else if(period==='month'){
+      return {from: today.toISOString().slice(0,7)+'-01', to: today.toISOString().slice(0,10)};
+    } else {
+      const df = document.getElementById('mapDateFrom').value;
+      const dt = document.getElementById('mapDateTo').value;
+      return {from: df||today.toISOString().slice(0,10), to: dt||today.toISOString().slice(0,10)};
+    }
+  }
+
+  function generateRiderPDF(){
+    const riderFilter = document.getElementById('riderReportRider').value;
+    const {from, to} = getRiderReportRange();
+    const allRiders = riderFilter==='all' ? [...new Set(sales.filter(s=>s.riderName).map(s=>s.riderName))] : [riderFilter];
+
+    const formatDate = d => new Date(d+'T00:00:00').toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'});
+    const daysBetween = Math.ceil((new Date(to)-new Date(from))/(1000*60*60*24))+1;
+
+    let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Elfancy Vapes — Rider Payment Report</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;color:#1e1e2e;background:#fff;padding:28px;}
+      .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1e1e2e;padding-bottom:14px;margin-bottom:20px;}
+      .brand{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
+      .brand .sub{font-size:11px;font-weight:500;color:#7a7d9a;margin-top:2px;}
+      .period{font-size:11px;color:#7a7d9a;text-align:right;}
+      .rider-block{page-break-inside:avoid;margin-bottom:36px;}
+      .rider-header{background:#1e1e2e;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;}
+      .rider-name{font-size:16px;font-weight:800;}
+      .rider-id{font-size:11px;color:#7a7d9a;}
+      .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e4e6ef;border:1px solid #e4e6ef;border-top:none;}
+      .stat{background:#fff;padding:10px 12px;}
+      .stat-label{font-size:9px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;color:#7a7d9a;}
+      .stat-value{font-size:18px;font-weight:800;margin-top:3px;}
+      .stat-value.green{color:#00A082;}
+      table{width:100%;border-collapse:collapse;margin-top:1px;font-size:11px;}
+      th{background:#f4f5f9;text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;font-weight:700;color:#7a7d9a;border-bottom:1px solid #e4e6ef;}
+      td{padding:8px 10px;border-bottom:1px solid #f0f1f5;vertical-align:top;}
+      tr:last-child td{border-bottom:none;}
+      .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:9px;font-weight:800;}
+      .badge.ok{background:#e8f8f4;color:#00A082;}
+      .badge.warn{background:#fff8e1;color:#f9a825;}
+      .badge.bad{background:#fef0f0;color:#e03d3d;}
+      .badge.great{background:#e8f8f4;color:#00A082;}
+      .payment-row{background:#1e1e2e;color:#fff;padding:10px 16px;border-radius:0 0 10px 10px;display:flex;justify-content:space-between;align-items:center;}
+      .payment-label{font-size:11px;color:#7a7d9a;}
+      .payment-amount{font-size:18px;font-weight:800;color:#F2CC38;}
+      .footer{margin-top:24px;padding-top:14px;border-top:1px solid #e4e6ef;display:flex;justify-content:space-between;font-size:10px;color:#7a7d9a;}
+      .sig-box{border:1px solid #e4e6ef;border-radius:8px;padding:14px 16px;min-width:200px;text-align:center;}
+      .sig-line{border-top:1px solid #1e1e2e;margin-top:36px;padding-top:6px;}
+      @media print{body{padding:16px;}@page{margin:12mm;}}
+    </style></head><body>
+    <div class="header">
+      <div>
+        <div class="brand">Elfancy Vapes<div class="sub">SALES LEDGER · RIDER PAYMENT REPORT</div></div>
+      </div>
+      <div class="period">
+        Period: <strong>${formatDate(from)}</strong> to <strong>${formatDate(to)}</strong><br>
+        (${daysBetween} day${daysBetween!==1?'s':''})<br>
+        Generated: ${new Date().toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+      </div>
+    </div>`;
+
+    for(const riderName of allRiders){
+      const riderSales = sales.filter(s=>
+        s.status==='Completed' && s.riderName===riderName && s.date>=from && s.date<=to
+      ).sort((a,b)=>a.date.localeCompare(b.date));
+      if(!riderSales.length) continue;
+
+      const totalRevenue = riderSales.reduce((a,s)=>a+s.revenue,0);
+      const totalFees = riderSales.reduce((a,s)=>a+s.transportCost,0);
+      const areas = [...new Set(riderSales.map(s=>s.deliveryLocation).filter(Boolean))];
+      const riderRecord = riders.find(r=>r.name===riderName);
+      // Get tip and comment from latest payment record for this rider/period
+      const payRecord = riderPayments.filter(p=>p.riderName===riderName&&p.from===from&&p.to===to).slice(-1)[0];
+      const tip = payRecord?.tip || parseFloat(document.getElementById('riderTipAmount').value)||0;
+      const ownerComment = payRecord?.comment || document.getElementById('riderPaymentComment').value.trim();
+      const settlementStatus = payRecord?.status||'pending';
+      const totalPayment = totalFees + tip;
+
+      html += `<div class="rider-block">
+        <div class="rider-header">
+          <div>
+            <div class="rider-name">🏍️ ${riderName}</div>
+            <div class="rider-id">${riderRecord?riderRecord.id:'—'} ${riderRecord?.phone?'· '+riderRecord.phone:''}</div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Deliveries</div><div class="stat-value">${riderSales.length}</div></div>
+          <div class="stat"><div class="stat-label">Revenue delivered</div><div class="stat-value">KES ${Math.round(totalRevenue).toLocaleString()}</div></div>
+          <div class="stat"><div class="stat-label">Areas covered</div><div class="stat-value">${areas.length}</div></div>
+          <div class="stat"><div class="stat-label">Delivery fees earned</div><div class="stat-value green">KES ${Math.round(totalFees).toLocaleString()}</div></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Order #</th><th>Product</th><th>Customer</th>
+            <th>Delivery area</th><th>Fee (KES)</th><th>Status</th><th>Feedback</th>
+          </tr></thead>
+          <tbody>`;
+
+      for(const s of riderSales){
+        const fb = riderFeedback.find(f=>f.saleId===s.id);
+        const fbStatus = fb?.status||'';
+        const fbBadgeClass = fbStatus.includes('Delayed')||fbStatus.includes('Wrong')||fbStatus.includes('Damaged')||fbStatus.includes('No comm')?'bad':fbStatus.includes('Excellent')||fbStatus.includes('Fast')?'great':fbStatus?'warn':'ok';
+        const fbBadgeText = fbStatus||'On time';
+        html += `<tr>
+          <td>${s.date}</td>
+          <td style="font-size:10px;color:#7a7d9a;">${s.orderNumber||'—'}</td>
+          <td>${s.item||'—'}</td>
+          <td>${s.customerName||'—'}</td>
+          <td>${s.deliveryLocation||'—'}</td>
+          <td style="font-weight:800;">${s.transportCost||0}</td>
+          <td><span class="badge ok">Completed</span></td>
+          <td>
+            <span class="badge ${fbBadgeClass}">${fbBadgeText}</span>
+            ${fb?.note?`<div style="font-size:10px;color:#7a7d9a;margin-top:3px;font-style:italic;">${fb.note}</div>`:''}
+          </td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>
+        <div class="payment-row">
+          <div>
+            <div class="payment-label">Delivery fees</div>
+            <div style="font-size:14px;font-weight:800;color:#fff;">KES ${Math.round(totalFees).toLocaleString()}</div>
+            ${tip?`<div style="font-size:11px;color:#F2CC38;margin-top:4px;">+ Tip / bonus: KES ${Math.round(tip).toLocaleString()}</div>`:''}
+          </div>
+          <div style="text-align:center;">
+            <div class="payment-label">Settlement status</div>
+            <div style="margin-top:4px;padding:4px 14px;border-radius:999px;display:inline-block;font-size:12px;font-weight:800;background:${settlementStatus==='paid'?'#00A082':'#f9a825'};color:#fff;">
+              ${settlementStatus==='paid'?'✓ PAID':'⏳ PENDING'}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="payment-label">Total payment due</div>
+            <div class="payment-amount">KES ${Math.round(totalPayment).toLocaleString()}</div>
+          </div>
+        </div>
+        ${ownerComment?`<div style="background:#fff8e1;border-left:3px solid #F2CC38;padding:9px 13px;font-size:11px;border-radius:0 0 8px 0;"><strong>Owner note:</strong> ${ownerComment}</div>`:''}
+        ${areas.length?`<div style="margin-top:8px;font-size:10px;color:#7a7d9a;padding:0 4px;"><strong>Areas served:</strong> ${areas.join(' · ')}</div>`:''}
+      </div>`;
+    }
+
+    html += `<div class="footer">
+      <div>Elfancy Vapes · Diodori, Lagiri Rd · Nairobi, Kenya</div>
+      <div style="display:flex;gap:24px;">
+        <div class="sig-box"><div style="font-size:10px;color:#7a7d9a;margin-bottom:4px;">Prepared by</div><div class="sig-line">Operations Manager</div></div>
+        <div class="sig-box"><div style="font-size:10px;color:#7a7d9a;margin-bottom:4px;">Received by (Rider)</div><div class="sig-line">Signature &amp; Date</div></div>
+      </div>
+    </div></body></html>`;
+
+    const win = window.open('','_blank');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(()=>win.print(), 600);
+  }
+
+  // ---------- Settlement log ----------
+  function renderSettlementLog(){
+    const filterStatus = document.getElementById('riderReportStatus')?.value||'all';
+    const log = document.getElementById('settlementLog');
+    const body = document.getElementById('settlementBody');
+    if(!riderPayments.length){ if(log) log.style.display='none'; return; }
+    if(log) log.style.display='block';
+    let rows = [...riderPayments].sort((a,b)=>b.settledAt?.localeCompare(a.settledAt||'')||0);
+    if(filterStatus!=='all') rows = rows.filter(r=>r.status===filterStatus);
+    if(!body) return;
+    body.innerHTML = rows.map(p=>{
+      const total = (Number(p.feesEarned)||0) + (Number(p.tip)||0);
+      const paid = p.status==='paid';
+      return `<tr>
+        <td><strong>${escapeHtml(p.riderName)}</strong></td>
+        <td style="font-size:11px;">${p.from} → ${p.to}</td>
+        <td class="mono">${p.deliveries}</td>
+        <td class="mono">KES ${Math.round(p.feesEarned||0).toLocaleString()}</td>
+        <td class="mono" style="color:var(--green);">${p.tip?'+ KES '+Math.round(p.tip).toLocaleString():'—'}</td>
+        <td class="mono" style="font-weight:800;">KES ${Math.round(total).toLocaleString()}</td>
+        <td><span class="badge ${paid?'completed':'cancelled'}">${paid?'✓ Paid':'⏳ Pending'}</span></td>
+        <td style="max-width:180px;font-size:11px;color:var(--muted);white-space:normal;">${escapeHtml(p.comment||'—')}</td>
+        <td style="font-size:11px;color:var(--muted);">${escapeHtml(p.settledBy||'—')}<br><span style="font-size:10px;">${p.settledAt?p.settledAt.slice(0,10):''}</span></td>
+        <td>
+          ${!paid?`<button class="ghost-btn" style="font-size:11px;padding:4px 9px;color:var(--green);border-color:var(--green);" onclick="markPaymentPaid('${p.id}')">Mark paid</button>`:''}
+          <button class="del-btn" onclick="deletePayment('${p.id}')">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.markPaymentPaid = async function(id){
+    const p = riderPayments.find(x=>x.id===id); if(!p) return;
+    p.status='paid'; p.settledAt=new Date().toISOString(); p.settledBy=currentUser?.name||'Admin';
+    await saveRiderPayments(); renderSettlementLog();
+    const s=document.getElementById('settlementStatus');
+    s.className='status-line show ok'; s.textContent=`✓ Payment to ${p.riderName} marked as paid.`;
+  };
+
+  window.deletePayment = async function(id){
+    if(!confirm('Delete this settlement record?')) return;
+    riderPayments = riderPayments.filter(x=>x.id!==id);
+    await saveRiderPayments(); renderSettlementLog();
+  };
+
+  async function markPaidForPeriod(){
+    const riderFilter = document.getElementById('riderReportRider').value;
+    const {from, to} = getRiderReportRange();
+    const tip = parseFloat(document.getElementById('riderTipAmount').value)||0;
+    const comment = document.getElementById('riderPaymentComment').value.trim();
+    const targetRiders = riderFilter==='all'
+      ? [...new Set(sales.filter(s=>s.riderName).map(s=>s.riderName))]
+      : [riderFilter];
+
+    let created = 0;
+    for(const riderName of targetRiders){
+      const riderSales = sales.filter(s=>s.status==='Completed'&&s.riderName===riderName&&s.date>=from&&s.date<=to);
+      if(!riderSales.length) continue;
+      const feesEarned = riderSales.reduce((a,s)=>a+(s.transportCost||0),0);
+      riderPayments.push({
+        id: Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+        riderName, from, to,
+        deliveries: riderSales.length,
+        feesEarned, tip, comment,
+        status:'pending',
+        settledAt: null, settledBy: null
+      });
+      created++;
+    }
+    if(!created){ alert('No deliveries found for the selected rider and period.'); return; }
+    await saveRiderPayments();
+    document.getElementById('riderTipAmount').value='';
+    document.getElementById('riderPaymentComment').value='';
+    renderSettlementLog();
+    const s=document.getElementById('settlementStatus');
+    s.className='status-line show ok';
+    s.textContent=`✓ Settlement record created for ${created} rider${created!==1?'s':''} — ${from} to ${to}. ${tip?'Tip of KES '+tip.toLocaleString()+' included.':''}`;
+    setTimeout(()=>s.className='status-line',4000);
+  }
+
   // ---------- Wiring ----------
   document.getElementById('statusSeg').addEventListener('click', e=>{
     const btn = e.target.closest('button'); if(!btn) return;
@@ -4358,6 +4846,125 @@
       const p = document.getElementById('notifPanel');
       if(p) p.classList.remove('show');
     }
+  });
+
+  // Drive folder ID setting
+  document.getElementById('saveDriveFolderBtn').addEventListener('click', async ()=>{
+    const val = document.getElementById('driveFolderInput').value.trim();
+    // Accept full URL or bare folder ID
+    const m = val.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    settings.driveFolderId = m ? m[1] : val;
+    await saveSettings();
+    const s = document.getElementById('driveFolderStatus');
+    s.className='status-line show ok';
+    s.textContent = '✓ Folder saved. Click "📁 Browse folder" in the stock form to pick images.';
+  });
+
+  // Pre-fill Drive folder input when settings open
+  const origSettingsOpen = document.getElementById('settingsBtn').onclick;
+  document.getElementById('settingsBtn').addEventListener('click', ()=>{
+    if(settings.driveFolderId) document.getElementById('driveFolderInput').value = settings.driveFolderId;
+    document.getElementById('driveFolderStatus').className = 'status-line';
+  });
+
+  // Browse Drive gallery
+  document.getElementById('browseDriveBtn').addEventListener('click', async ()=>{
+    const gallery = document.getElementById('driveFolderGallery');
+    const grid = document.getElementById('galleryGrid');
+    const status = document.getElementById('galleryStatus');
+    const nameEl = document.getElementById('galleryFolderName');
+
+    if(!settings.driveFolderId){
+      alert('Set your Drive folder ID first in ⚙ Settings → Google Drive images folder.');
+      return;
+    }
+    if(!settings.webhookUrl){
+      alert('Connect your Google Sheet first in ⚙ Settings.');
+      return;
+    }
+    gallery.style.display='block';
+    grid.innerHTML='';
+    status.textContent='Loading images from Drive…';
+    nameEl.textContent='Loading…';
+
+    try{
+      const url = settings.webhookUrl + '?action=fetch_drive_folder&folder_id=' + encodeURIComponent(settings.driveFolderId);
+      const j = await scriptTagGet(url);
+      if(!j || j.status!=='ok'){
+        status.textContent = j?.message || 'Could not load folder. Make sure the folder is in your Drive and the folder ID is correct.';
+        return;
+      }
+      nameEl.textContent = '📁 ' + (j.folderName||'Drive folder') + ' — ' + (j.files||[]).length + ' images';
+      if(!j.files||!j.files.length){ status.textContent='No images found in this folder.'; return; }
+      status.textContent='';
+      grid.innerHTML = j.files.map(f=>`
+        <div onclick="selectDriveImage('${f.directUrl}','${f.fullUrl}')"
+          style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:.15s;background:#f1efe9;"
+          onmouseenter="this.style.borderColor='var(--green)'" onmouseleave="this.style.borderColor='transparent'"
+          title="${f.name}">
+          <img src="${f.thumbnailUrl}" alt="${f.name}"
+            style="width:100%;height:70px;object-fit:cover;display:block;"
+            onerror="this.parentElement.innerHTML='<div style=\\'height:70px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);padding:4px;text-align:center;\\'>${f.name.slice(0,20)}</div>'">
+          <div style="font-size:9px;color:var(--muted);padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+        </div>`).join('');
+    } catch(err){
+      status.textContent = 'Error: ' + err.message;
+    }
+  });
+
+  window.selectDriveImage = function(directUrl, sharingUrl){
+    document.getElementById('st_imgUrl').value = sharingUrl;
+    updateImgPreview(directUrl);
+    document.getElementById('st_imgData').value = 'drive:' + sharingUrl;
+    document.getElementById('driveFolderGallery').style.display='none';
+    // Show a quick confirmation
+    const hint = document.createElement('div');
+    hint.style.cssText='font-size:11px;color:var(--green);font-weight:700;margin-top:4px;';
+    hint.textContent='✓ Image selected from Drive';
+    const urlInput = document.getElementById('st_imgUrl');
+    urlInput.parentNode.appendChild(hint);
+    setTimeout(()=>hint.remove(), 2000);
+  };
+  document.getElementById('markPaidBtn').addEventListener('click', markPaidForPeriod);
+  document.getElementById('riderReportStatus').addEventListener('change', renderSettlementLog);
+
+  // Rider report period change — show map date filters for custom
+  document.getElementById('riderReportPeriod').addEventListener('change', e=>{
+    const mapDateRow = document.querySelector('#mapDateFrom')?.closest('div[style*="flex"]');
+    // custom period uses map date filters
+  });
+
+  // Rider feedback modal
+  let currentFeedbackSale = null;
+  document.getElementById('riderPerfBody').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-feedbacksale]'); if(!btn) return;
+    const saleId = btn.dataset.feedbacksale;
+    const sale = sales.find(s=>s.id===saleId); if(!sale) return;
+    currentFeedbackSale = sale;
+    document.getElementById('riderFeedbackOrderLabel').textContent =
+      `${sale.riderName} · ${sale.date} · ${sale.item||''} · ${sale.deliveryLocation||''}`;
+    const existing = riderFeedback.find(f=>f.saleId===saleId);
+    document.getElementById('riderFeedbackStatus').value = existing?.status||'';
+    document.getElementById('riderFeedbackNote').value = existing?.note||'';
+    document.getElementById('riderFeedbackModal').style.display='flex';
+  });
+
+  document.getElementById('saveRiderFeedbackBtn').addEventListener('click', async ()=>{
+    if(!currentFeedbackSale) return;
+    const existing = riderFeedback.findIndex(f=>f.saleId===currentFeedbackSale.id);
+    const entry = {
+      id: existing>=0 ? riderFeedback[existing].id : Date.now().toString(36),
+      saleId: currentFeedbackSale.id,
+      riderName: currentFeedbackSale.riderName,
+      status: document.getElementById('riderFeedbackStatus').value,
+      note: document.getElementById('riderFeedbackNote').value.trim(),
+      date: currentFeedbackSale.date
+    };
+    if(existing>=0) riderFeedback[existing]=entry;
+    else riderFeedback.push(entry);
+    await saveRiderFeedback();
+    document.getElementById('riderFeedbackModal').style.display='none';
+    renderRiderPerformance();
   });
 
   document.getElementById('refreshMapBtn').addEventListener('click', renderOrderMap);
@@ -4805,6 +5412,7 @@
     document.getElementById('breakEvenStatus').className = 'status-line';
     document.getElementById('branchStatus').className = 'status-line';
     document.getElementById('breakEvenInput').value = settings.breakEvenMonthly||'';
+    document.getElementById('driveFolderInput').value = settings.driveFolderId||'';
     renderUserList();
     renderRiderList2();
     renderBranchList();
