@@ -750,19 +750,14 @@
     </div>
   </div>
 
-
 </div>
 <div class="dashboard-section" id="sec-analytics">
 
   <!-- Analytics month filter bar -->
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 0 12px;border-bottom:1.5px solid var(--line);margin-bottom:20px;">
     <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">📅 Period</span>
-    <select id="analyticsMonthFilter" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);" onchange="applyAnalyticsFilter()">
-      <option value="all">All time</option>
-    </select>
-    <select id="analyticsYearFilter" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);display:none;" onchange="applyAnalyticsFilter()">
-    </select>
-    <button class="ghost-btn" id="analyticsClearBtn" style="font-size:12px;padding:6px 12px;display:none;" onclick="document.getElementById('analyticsMonthFilter').value='all';document.getElementById('analyticsYearFilter').style.display='none';document.getElementById('analyticsClearBtn').style.display='none';applyAnalyticsFilter();">✕ Clear</button>
+    <select id="analyticsMonthFilter" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);" onchange="applyAnalyticsFilter()"><option value="all">All time</option></select>
+    <button class="ghost-btn" id="analyticsClearBtn" style="font-size:12px;padding:6px 12px;display:none;" onclick="document.getElementById('analyticsMonthFilter').value='all';document.getElementById('analyticsClearBtn').style.display='none';applyAnalyticsFilter();">✕ Clear</button>
     <span id="analyticsPeriodLabel" style="font-size:12px;color:var(--green);font-weight:700;"></span>
   </div>
 
@@ -909,13 +904,24 @@
       <!-- Controls row -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
         <div class="field" style="margin:0;">
-          <label>Report period</label>
-          <select id="riderReportPeriod" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+          <label>From date</label>
+          <input type="date" id="riderPayFrom" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+        </div>
+        <div class="field" style="margin:0;">
+          <label>To date</label>
+          <input type="date" id="riderPayTo" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Quick select</label>
+          <select id="riderReportPeriod" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;" onchange="applyRiderPayPeriod()">
             <option value="week">This week (last 7 days)</option>
             <option value="month">This month</option>
-            <option value="custom">Custom range (use map dates)</option>
+            <option value="lastmonth">Last month</option>
+            <option value="custom">Custom (use dates above)</option>
           </select>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
         <div class="field" style="margin:0;">
           <label>Rider</label>
           <select id="riderReportRider" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
@@ -929,6 +935,10 @@
             <option value="pending">Pending only</option>
             <option value="paid">Paid only</option>
           </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>&nbsp;</label>
+          <div id="riderPaySummary" style="font-size:12px;color:var(--muted);padding:9px 0;font-weight:600;"></div>
         </div>
       </div>
 
@@ -1041,6 +1051,7 @@
   </div>
 
 
+</div>
 </div>
 <div class="dashboard-section" id="sec-returns">
   <!-- Returns & Refunds section -->
@@ -4468,18 +4479,42 @@
   }
 
   function getRiderReportRange(){
-    const period = document.getElementById('riderReportPeriod').value;
     const today = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    const period = document.getElementById('riderReportPeriod')?.value||'week';
+    let from, to;
     if(period==='week'){
-      const from = new Date(today); from.setDate(today.getDate()-6);
-      return {from: from.toISOString().slice(0,10), to: today.toISOString().slice(0,10)};
+      const f=new Date(today); f.setDate(today.getDate()-6);
+      from=fmt(f); to=fmt(today);
     } else if(period==='month'){
-      return {from: today.toISOString().slice(0,7)+'-01', to: today.toISOString().slice(0,10)};
+      from=today.toISOString().slice(0,7)+'-01'; to=fmt(today);
+    } else if(period==='lastmonth'){
+      const lm=new Date(today.getFullYear(),today.getMonth()-1,1);
+      const lme=new Date(today.getFullYear(),today.getMonth(),0);
+      from=fmt(lm); to=fmt(lme);
     } else {
-      const df = document.getElementById('mapDateFrom').value;
-      const dt = document.getElementById('mapDateTo').value;
-      return {from: df||today.toISOString().slice(0,10), to: dt||today.toISOString().slice(0,10)};
+      // custom — use the date picker fields
+      from=document.getElementById('riderPayFrom')?.value||fmt(today);
+      to=document.getElementById('riderPayTo')?.value||fmt(today);
     }
+    // Set date pickers to match
+    const pf=document.getElementById('riderPayFrom');
+    const pt=document.getElementById('riderPayTo');
+    if(pf&&period!=='custom') pf.value=from;
+    if(pt&&period!=='custom') pt.value=to;
+    // Update summary
+    updateRiderPaySummary(from, to);
+    return {from, to};
+  }
+
+  window.applyRiderPayPeriod = function(){ getRiderReportRange(); };
+
+  function updateRiderPaySummary(from, to){
+    const riderFilter = document.getElementById('riderReportRider')?.value||'all';
+    const riderSales = sales.filter(s=>s.status==='Completed'&&s.riderName&&s.date>=from&&s.date<=to&&(riderFilter==='all'||s.riderName===riderFilter));
+    const totalFees = riderSales.reduce((a,s)=>a+(s.transportCost||0),0);
+    const el = document.getElementById('riderPaySummary');
+    if(el) el.textContent = riderSales.length ? `${riderSales.length} delivery${riderSales.length!==1?'ies':''} · ${fmtKES(totalFees)} fees` : 'No deliveries in this period';
   }
 
   function generateRiderPDF(){
@@ -4948,12 +4983,19 @@
   };
   document.getElementById('markPaidBtn').addEventListener('click', markPaidForPeriod);
   document.getElementById('riderReportStatus').addEventListener('change', renderSettlementLog);
-
-  // Rider report period change — show map date filters for custom
-  document.getElementById('riderReportPeriod').addEventListener('change', e=>{
-    const mapDateRow = document.querySelector('#mapDateFrom')?.closest('div[style*="flex"]');
-    // custom period uses map date filters
+  document.getElementById('riderReportBtn').addEventListener('click', generateRiderPDF);
+  document.getElementById('riderReportPeriod').addEventListener('change', applyRiderPayPeriod);
+  document.getElementById('riderPayFrom')?.addEventListener('change', ()=>{
+    document.getElementById('riderReportPeriod').value='custom';
+    updateRiderPaySummary(document.getElementById('riderPayFrom').value, document.getElementById('riderPayTo').value);
   });
+  document.getElementById('riderPayTo')?.addEventListener('change', ()=>{
+    document.getElementById('riderReportPeriod').value='custom';
+    updateRiderPaySummary(document.getElementById('riderPayFrom').value, document.getElementById('riderPayTo').value);
+  });
+  document.getElementById('riderReportRider')?.addEventListener('change', ()=>getRiderReportRange());
+  // Initialise date pickers to this week on load
+  setTimeout(()=>getRiderReportRange(), 500);
 
   // Rider feedback modal
   let currentFeedbackSale = null;
