@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';s.onload=function(){window.__chartRetry && window.__chartRetry();};document.head.appendChild(s);"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --yellow:#F2CC38; --yellow-dim:#fff9e0; --yellow-mid:#ffd700;
@@ -1223,7 +1224,12 @@
   <div class="panel" style="margin-top:18px;">
     <h2 style="display:flex;align-items:center;justify-content:space-between;">
       <span>Stock inventory <span style="font-size:12px;font-weight:500;color:var(--muted);margin-left:6px;">auto-deducts on every sale</span></span>
-      <span class="hint" id="stockCount">0 products</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="hint" id="stockCount">0 products</span>
+        <button class="ghost-btn" id="pushInventoryBtn" style="font-size:11px;padding:5px 10px;border-color:var(--green);color:var(--green);">🔄 Sync to Sheet</button>
+        <button class="ghost-btn" id="exportInvCsvBtn" style="font-size:11px;padding:5px 10px;">⬇ CSV</button>
+        <button class="ghost-btn" id="exportInvXlsxBtn" style="font-size:11px;padding:5px 10px;border-color:#1d6f42;color:#1d6f42;">⬇ Excel</button>
+      </div>
     </h2>
 
     <!-- Stock KPI row -->
@@ -1251,6 +1257,25 @@
     </div>
 
     <!-- Add / adjust stock form -->
+    <!-- Inventory search bar -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:var(--paper);border-radius:var(--radius-sm);border:1.5px solid var(--line);">
+      <span style="font-size:16px;flex-shrink:0;">🔍</span>
+      <input type="text" id="stockSearch" placeholder="Search — Lost Mary, Elfbar, Ice King, Mint, 30K…"
+        oninput="filterInventory(this.value)"
+        style="flex:1;border:none;background:transparent;font-family:inherit;font-size:13.5px;color:var(--ink);outline:none;">
+      <button type="button" id="stockSearchClear"
+        onclick="document.getElementById('stockSearch').value='';filterInventory('');"
+        style="display:none;background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;" title="Clear">✕</button>
+      <span id="stockSearchCount" style="font-size:11px;color:var(--muted);white-space:nowrap;font-weight:700;"></span>
+      <select id="stockStatusFilter" onchange="filterInventory(document.getElementById('stockSearch').value)"
+        style="border:1.5px solid var(--line);border-radius:7px;padding:6px 10px;font-family:inherit;font-size:12px;cursor:pointer;background:#fff;">
+        <option value="all">All status</option>
+        <option value="instock">In stock only</option>
+        <option value="low">Low stock only</option>
+        <option value="out">Out of stock only</option>
+      </select>
+    </div>
+
     <details style="margin-bottom:14px;">
       <summary style="font-size:13px;font-weight:700;cursor:pointer;padding:10px 12px;background:#f9f8f4;border-radius:9px;list-style:none;display:flex;align-items:center;gap:8px;">
         <span>＋</span> Add or adjust stock
@@ -3046,7 +3071,11 @@
   window.adjustStock = async function(id, delta){
     const item = inventory.find(i=>i.id===id); if(!item) return;
     item.quantity = Math.max(0, item.quantity + delta);
-    await saveInventory(); renderStock();
+    await saveInventory();
+    renderStock();
+    // Push updated quantity to Sheet
+    const {image:_,...rest} = item;
+    pushToSheetTyped({...rest, __type:'inventory'}); // fire and forget
   };
 
   // ---------- Customers ----------
@@ -4745,6 +4774,155 @@
     setTimeout(()=>s.className='status-line',4000);
   }
 
+  window.filterInventory = function(q){
+    const clearBtn = document.getElementById('stockSearchClear');
+    const countEl = document.getElementById('stockSearchCount');
+    const statusFilter = document.getElementById('stockStatusFilter')?.value||'all';
+    if(clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+
+    const rows = document.querySelectorAll('#stockBody tr');
+    let visible = 0;
+    rows.forEach(row=>{
+      if(row.classList.contains('empty-row')){ row.style.display=''; return; }
+      const text = row.textContent.toLowerCase();
+      const qMatch = !q || text.includes(q.toLowerCase());
+      // Status filter based on badge text in the row
+      let statusMatch = true;
+      if(statusFilter !== 'all'){
+        const hasLow = text.includes('low stock');
+        const hasOut = text.includes('out of stock');
+        const hasIn = !hasLow && !hasOut && text.includes('in stock');
+        if(statusFilter==='low') statusMatch = hasLow;
+        else if(statusFilter==='out') statusMatch = hasOut;
+        else if(statusFilter==='instock') statusMatch = hasIn;
+      }
+      const show = qMatch && statusMatch;
+      row.style.display = show ? '' : 'none';
+      if(show) visible++;
+    });
+
+    if(countEl){
+      const total = rows.length;
+      countEl.textContent = (q||statusFilter!=='all') ? `${visible} of ${total} products` : '';
+    }
+
+    // Show empty message if nothing matches
+    const body = document.getElementById('stockBody');
+    const noResult = body?.querySelector('.no-filter-result');
+    if(visible===0 && (q||statusFilter!=='all')){
+      if(!noResult){
+        const tr = document.createElement('tr');
+        tr.className='empty-row no-filter-result';
+        tr.innerHTML = `<td colspan="9">No products match "<strong>${q}</strong>"${statusFilter!=='all'?' with status "'+statusFilter+'"':''}. <span style="cursor:pointer;color:var(--green);text-decoration:underline;" onclick="document.getElementById('stockSearch').value='';document.getElementById('stockStatusFilter').value='all';filterInventory('');">Clear filter</span></td>`;
+        body.appendChild(tr);
+      }
+    } else {
+      noResult?.remove();
+    }
+  };
+  function downloadInventoryCSV(){
+    const headers = ['ID','Product Name','Quantity','Cost Price (KES)','Stock Value (KES)','Low Stock At','Status','Image URL'];
+    const rows = inventory.map(item=>{
+      const stockVal = (item.quantity||0)*(item.costPrice||0);
+      const status = item.quantity===0?'Out of stock':item.quantity<=item.minQty?'Low stock':'In stock';
+      return [
+        item.id||'',
+        item.name||'',
+        item.quantity||0,
+        item.costPrice||0,
+        stockVal,
+        item.minQty||1,
+        status,
+        item.imageUrl||''
+      ];
+    });
+    const csv = [headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`Elfancy_Vapes_Inventory_${todayStr()}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  function downloadInventoryExcel(){
+    if(typeof XLSX === 'undefined'){ alert('Excel library not loaded — check your internet connection.'); return; }
+    const ws_data = [
+      ['ID','Product Name','Quantity','Cost Price (KES)','Stock Value (KES)','Low Stock Alert At','Status','Image URL','Last Updated'],
+      ...inventory.map(item=>{
+        const stockVal = (item.quantity||0)*(item.costPrice||0);
+        const status = item.quantity===0?'Out of stock':item.quantity<=(item.minQty||1)?'Low stock':'In stock';
+        return [
+          item.id||'',
+          item.name||'',
+          item.quantity||0,
+          item.costPrice||0,
+          stockVal,
+          item.minQty||1,
+          status,
+          item.imageUrl||'',
+          todayStr()
+        ];
+      })
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    // Column widths
+    ws['!cols'] = [
+      {wch:14},{wch:45},{wch:12},{wch:16},{wch:16},{wch:16},{wch:14},{wch:45},{wch:14}
+    ];
+    // Header row styling
+    const headerRange = XLSX.utils.decode_range(ws['!ref']);
+    for(let c=headerRange.s.c; c<=headerRange.e.c; c++){
+      const cell = ws[XLSX.utils.encode_cell({r:0,c})];
+      if(cell) cell.s = {font:{bold:true},fill:{fgColor:{rgb:'1E1E2E'}},font:{color:{rgb:'FFFFFF'},bold:true}};
+    }
+    // Colour status cells
+    inventory.forEach((item,i)=>{
+      const row = i+1;
+      const statusCell = ws[XLSX.utils.encode_cell({r:row,c:6})];
+      if(statusCell){
+        const color = item.quantity===0?'FFCCCC':item.quantity<=(item.minQty||1)?'FFF3CD':'C8EDE4';
+        statusCell.s = {fill:{fgColor:{rgb:color}}};
+      }
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+    // Add a summary sheet
+    const totalValue = inventory.reduce((a,i)=>a+(i.quantity||0)*(i.costPrice||0),0);
+    const inStock = inventory.filter(i=>i.quantity>(i.minQty||1)).length;
+    const lowStock = inventory.filter(i=>i.quantity>0&&i.quantity<=(i.minQty||1)).length;
+    const outOfStock = inventory.filter(i=>i.quantity===0).length;
+    const summary_data = [
+      ['Elfancy Vapes — Inventory Summary',''],
+      ['Generated','=TODAY()'],
+      ['',''],
+      ['METRIC','VALUE'],
+      ['Total products',inventory.length],
+      ['In stock',inStock],
+      ['Low stock',lowStock],
+      ['Out of stock',outOfStock],
+      ['Total stock value (KES)',totalValue],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(summary_data);
+    ws2['!cols']=[{wch:30},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+    XLSX.writeFile(wb, `Elfancy_Vapes_Inventory_${todayStr()}.xlsx`);
+  }
+
+  async function pushAllInventoryToSheet(){
+    if(!settings.webhookUrl){ alert('Link a Google Sheet first in ⚙ Settings.'); return; }
+    const btn = document.getElementById('pushInventoryBtn');
+    btn.textContent='Syncing…'; btn.disabled=true;
+    let pushed=0;
+    for(const item of inventory){
+      const {image:_,...rest}=item;
+      await pushToSheetTyped({...rest,__type:'inventory'});
+      pushed++;
+    }
+    btn.textContent='✓ Synced '+pushed+' products';
+    btn.disabled=false;
+    setTimeout(()=>{ btn.textContent='🔄 Sync to Sheet'; },3000);
+  }
+
   // ---------- Wiring ----------
   document.getElementById('statusSeg').addEventListener('click', e=>{
     const btn = e.target.closest('button'); if(!btn) return;
@@ -4983,6 +5161,10 @@
   };
   document.getElementById('markPaidBtn').addEventListener('click', markPaidForPeriod);
   document.getElementById('riderReportStatus').addEventListener('change', renderSettlementLog);
+  document.getElementById('pushInventoryBtn').addEventListener('click', pushAllInventoryToSheet);
+  document.getElementById('exportInvCsvBtn').addEventListener('click', downloadInventoryCSV);
+  document.getElementById('exportInvXlsxBtn').addEventListener('click', downloadInventoryExcel);
+
   document.getElementById('riderReportBtn').addEventListener('click', generateRiderPDF);
   document.getElementById('riderReportPeriod').addEventListener('change', applyRiderPayPeriod);
   document.getElementById('riderPayFrom')?.addEventListener('change', ()=>{
