@@ -973,6 +973,36 @@
     </div>
   </div>
 
+  <!-- Rider edit modal -->
+  <div id="riderEditModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:#fff;border-radius:20px;max-width:440px;width:100%;padding:28px;box-shadow:0 8px 48px rgba(0,0,0,0.3);position:relative;">
+      <button onclick="document.getElementById('riderEditModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Edit rider</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 18px;" id="riderEditLabel"></p>
+      <input type="hidden" id="riderEditIdx">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+        <div id="riderEditPhotoPreview" style="width:64px;height:64px;border-radius:50%;background:var(--dark);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">🏍️</div>
+        <div style="flex:1;">
+          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Update photo</label>
+          <input type="file" id="riderEditPhoto" accept="image/*" style="font-size:12px;">
+          <input type="hidden" id="riderEditPhotoData">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Name</label>
+          <input type="text" id="riderEditName" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Phone</label>
+          <input type="text" id="riderEditPhone" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
+        </div>
+      </div>
+      <button id="saveRiderEditBtn" style="width:100%;background:linear-gradient(135deg,var(--dark),#2a2a3e);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">Save changes</button>
+      <div class="status-line" id="riderEditStatus"></div>
+    </div>
+  </div>
+
   <!-- Rider feedback modal -->
   <div id="riderFeedbackModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
     <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:28px;box-shadow:var(--shadow-lg);position:relative;">
@@ -3533,6 +3563,7 @@
       <span style="font-size:10px;font-weight:800;background:var(--paper);border:1.5px solid var(--line);color:var(--muted);padding:2px 7px;border-radius:5px;letter-spacing:0.3px;font-family:'JetBrains Mono',monospace;">${escapeHtml(r.id||'—')}</span>
       <span class="user-name">${escapeHtml(r.name)}</span>
       <span style="font-size:12px;color:var(--muted);">${r.phone||''}</span>
+      <button class="user-del" style="color:var(--green);border-color:var(--green);border:1px solid;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;background:none;cursor:pointer;" data-rideredit="${i}">✏️ Edit</button>
       <button class="user-del" data-ridel="${i}">✕</button>
     </div>`).join('') || '<div style="font-size:12.5px;color:var(--muted);padding:6px 0;">No riders added yet.</div>';
     const dl = document.getElementById('riderList');
@@ -5357,6 +5388,46 @@
   });
 
   // Riders
+  // Rider edit modal
+  document.getElementById('riderEditPhoto').addEventListener('change', e=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        const size=120; canvas.width=size; canvas.height=size;
+        const ctx=canvas.getContext('2d');
+        const min=Math.min(img.width,img.height);
+        ctx.drawImage(img,(img.width-min)/2,(img.height-min)/2,min,min,0,0,size,size);
+        const data=canvas.toDataURL('image/jpeg',0.85);
+        document.getElementById('riderEditPhotoData').value=data;
+        document.getElementById('riderEditPhotoPreview').innerHTML=`<img src="${data}" style="width:100%;height:100%;object-fit:cover;">`;
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('saveRiderEditBtn').addEventListener('click', async ()=>{
+    const idx=parseInt(document.getElementById('riderEditIdx').value);
+    const name=document.getElementById('riderEditName').value.trim();
+    const phone=document.getElementById('riderEditPhone').value.trim();
+    const photo=document.getElementById('riderEditPhotoData').value;
+    const s=document.getElementById('riderEditStatus');
+    if(!name){s.className='status-line show fail';s.textContent='Name cannot be empty.';return;}
+    if(!riders[idx]){s.className='status-line show fail';s.textContent='Rider not found.';return;}
+    riders[idx].name=name;
+    riders[idx].phone=phone;
+    if(photo) riders[idx].photo=photo;
+    await saveRiders();
+    const {photo:_p,...syncData}=riders[idx];
+    pushToSheetTyped({...syncData,__type:'rider'});
+    renderRiderList2(); renderRiderPerformance();
+    s.className='status-line show ok';s.textContent='✓ Changes saved.';
+    setTimeout(()=>document.getElementById('riderEditModal').style.display='none',1200);
+  });
+
   document.getElementById('addRiderBtn').addEventListener('click', async ()=>{
     const name=document.getElementById('newRiderName').value.trim();
     const phone=document.getElementById('newRiderPhone').value.trim();
@@ -5377,6 +5448,24 @@
     s.className='status-line show ok';s.textContent='✓ Rider "'+name+'" added.';
   });
   document.getElementById('riderList2').addEventListener('click', async e=>{
+    // Edit button
+    const editBtn = e.target.closest('[data-rideredit]');
+    if(editBtn){
+      const idx = parseInt(editBtn.dataset.rideredit);
+      const r = riders[idx]; if(!r) return;
+      document.getElementById('riderEditIdx').value = idx;
+      document.getElementById('riderEditLabel').textContent = r.id + ' · editing now';
+      document.getElementById('riderEditName').value = r.name||'';
+      document.getElementById('riderEditPhone').value = r.phone||'';
+      document.getElementById('riderEditPhotoData').value = '';
+      document.getElementById('riderEditStatus').className='status-line';
+      // Show current photo
+      const prev = document.getElementById('riderEditPhotoPreview');
+      prev.innerHTML = r.photo ? `<img src="${r.photo}" style="width:100%;height:100%;object-fit:cover;">` : '🏍️';
+      document.getElementById('riderEditModal').style.display='flex';
+      return;
+    }
+    // Delete button
     const btn=e.target.closest('[data-ridel]'); if(!btn) return;
     const idx=parseInt(btn.dataset.ridel);
     if(!confirm('Remove rider "'+riders[idx]?.name+'"?')) return;
