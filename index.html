@@ -1011,14 +1011,9 @@
       <p style="color:var(--muted);font-size:13px;margin:0 0 16px;" id="riderFeedbackOrderLabel"></p>
       <div class="field"><label>Delivery status</label>
         <select id="riderFeedbackStatus" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;">
-          <option value="">On time — no issues</option>
-          <option value="Delayed">Delayed delivery</option>
-          <option value="Wrong location">Delivered to wrong location</option>
-          <option value="Damaged">Item delivered damaged</option>
-          <option value="No communication">No communication with customer</option>
-          <option value="Professional">Excellent — very professional</option>
-          <option value="Fast delivery">Exceptionally fast delivery</option>
-          <option value="Other">Other</option>
+          <option value="">On Time</option>
+          <option value="Slightly Delayed">Slightly Delayed</option>
+          <option value="Late">Late</option>
         </select>
       </div>
       <div class="field"><label>Notes (optional)</label>
@@ -4758,7 +4753,7 @@
       for(const s of riderSales){
         const fb = riderFeedback.find(f=>f.saleId===s.id);
         const fbStatus = fb?.status||'';
-        const fbBadgeClass = fbStatus.includes('Delayed')||fbStatus.includes('Wrong')||fbStatus.includes('Damaged')||fbStatus.includes('No comm')?'bad':fbStatus.includes('Excellent')||fbStatus.includes('Fast')?'great':fbStatus?'warn':'ok';
+        const fbBadgeClass = fbStatus==='Late'?'bad':fbStatus==='Slightly Delayed'?'warn':'ok';
         const fbBadgeText = fbStatus||'On time';
         html += `<tr>
           <td>${s.date}</td>
@@ -4769,7 +4764,7 @@
           <td style="font-weight:800;">${s.transportCost||0}</td>
           <td><span class="badge ok">Completed</span></td>
           <td>
-            <span class="badge ${fbBadgeClass}">${fbBadgeText}</span>
+            <span class="badge ${fbBadgeClass}" style="cursor:pointer;" onclick="window.opener && window.opener.openFeedbackModal && window.opener.openFeedbackModal('${s.id}')" title="Click to set delivery status">${fbBadgeText} ✎</span>
             ${fb?.note?`<div style="font-size:10px;color:#7a7d9a;margin-top:3px;font-style:italic;">${fb.note}</div>`:''}
           </td>
         </tr>`;
@@ -4809,6 +4804,7 @@
     const win = window.open('','_blank');
     win.document.write(html);
     win.document.close();
+    lastFeedbackReportWindow = win;
     setTimeout(()=>win.print(), 600);
   }
 
@@ -5299,18 +5295,20 @@
 
   // Rider feedback modal
   let currentFeedbackSale = null;
-  document.getElementById('riderPerfBody').addEventListener('click', e=>{
-    const btn = e.target.closest('[data-feedbacksale]'); if(!btn) return;
-    const saleId = btn.dataset.feedbacksale;
+  let lastFeedbackReportWindow = null; // ref to an open printed report window, so we can refresh it after saving
+
+  // Exposed globally so the printed Rider Payment Report (a separate window) can call back into this one.
+  window.openFeedbackModal = function(saleId){
     const sale = sales.find(s=>s.id===saleId); if(!sale) return;
     currentFeedbackSale = sale;
     document.getElementById('riderFeedbackOrderLabel').textContent =
-      `${sale.riderName} · ${sale.date} · ${sale.item||''} · ${sale.deliveryLocation||''}`;
+      `${sale.riderName||''} · ${sale.date} · ${sale.item||''} · ${sale.deliveryLocation||''}`;
     const existing = riderFeedback.find(f=>f.saleId===saleId);
     document.getElementById('riderFeedbackStatus').value = existing?.status||'';
     document.getElementById('riderFeedbackNote').value = existing?.note||'';
     document.getElementById('riderFeedbackModal').style.display='flex';
-  });
+    window.focus();
+  };
 
   document.getElementById('saveRiderFeedbackBtn').addEventListener('click', async ()=>{
     if(!currentFeedbackSale) return;
@@ -5328,6 +5326,10 @@
     await saveRiderFeedback();
     document.getElementById('riderFeedbackModal').style.display='none';
     renderRiderPerformance();
+    // If a printed report window is still open, regenerate it so the badge/status reflects immediately
+    if(lastFeedbackReportWindow && !lastFeedbackReportWindow.closed){
+      generateRiderPDF();
+    }
   });
 
   document.getElementById('refreshMapBtn').addEventListener('click', renderOrderMap);
