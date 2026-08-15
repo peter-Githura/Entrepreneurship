@@ -201,8 +201,7 @@
   .login-btn{width:100%;background:linear-gradient(135deg,var(--dark),var(--dark2));color:#fff;border:none;border-radius:var(--radius-sm);padding:14px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;margin-top:4px;transition:.2s;}
   .login-btn:hover{box-shadow:var(--shadow);}
   .login-err{color:var(--red);font-size:12.5px;margin-top:9px;min-height:18px;font-weight:600;}
-  .login-view-only{margin-top:14px;font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;transition:.15s;}
-  .login-view-only:hover{color:var(--green);}
+
 
   /* ===== User & rider management ===== */
   .user-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:13px;}
@@ -314,7 +313,6 @@
     </div>
     <button class="login-btn" id="loginBtn">Sign in</button>
     <div class="login-err" id="loginErr"></div>
-    <div class="login-view-only" id="viewOnlyBtn">View reports only (no PIN required)</div>
   </div>
 </div>
 
@@ -2620,14 +2618,41 @@
     if(!allowedTabs.includes(currentTab)) switchTab('overview');
   }
 
+  let loginAttempts = 0;
+  let loginLockedUntil = 0;
+
   function doLogin(){
     const name = document.getElementById('loginName').value;
     const pin = document.getElementById('loginPin').value;
     const errEl = document.getElementById('loginErr');
+
+    // Lockout check
+    const now = Date.now();
+    if(loginLockedUntil > now){
+      const secs = Math.ceil((loginLockedUntil - now)/1000);
+      errEl.textContent = `Too many attempts — try again in ${secs}s.`;
+      errEl.style.color = 'var(--red)';
+      return;
+    }
+
     if(!name){ errEl.textContent = 'Please select your name.'; return; }
-    if(!pin){ errEl.textContent = 'Please enter your PIN.'; return; }
+    if(!pin){ errEl.textContent = 'PIN is required — enter your PIN to continue.'; return; }
     const user = users.find(u => u.name === name && u.pin === pin);
-    if(!user){ errEl.textContent = 'Incorrect PIN — try again.'; document.getElementById('loginPin').value=''; return; }
+    if(!user){
+      loginAttempts++;
+      if(loginAttempts >= 5){
+        loginLockedUntil = Date.now() + 60000; // 60 second lockout
+        loginAttempts = 0;
+        errEl.textContent = '5 failed attempts — locked for 60 seconds.';
+        errEl.style.color = 'var(--red)';
+      } else {
+        errEl.textContent = `Incorrect PIN — ${5-loginAttempts} attempt${5-loginAttempts!==1?'s':''} remaining.`;
+      }
+      document.getElementById('loginPin').value='';
+      return;
+    }
+    loginAttempts = 0;
+    loginLockedUntil = 0;
     errEl.textContent = '';
     applySession(user);
     autoSyncFromSheet();
@@ -5633,10 +5658,6 @@
   document.getElementById('loginBtn').addEventListener('click', doLogin);
   document.getElementById('loginPin').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('loginName').addEventListener('change', ()=>{ document.getElementById('loginErr').textContent=''; });
-  document.getElementById('viewOnlyBtn').addEventListener('click', ()=>{
-    applySession({ name:'Viewer', role:'viewer' });
-    renderAll();
-  });
   document.getElementById('userChip').addEventListener('click', ()=>{
     if(confirm('Sign out of Elfancy Vapes?')){
       currentUser = null;
