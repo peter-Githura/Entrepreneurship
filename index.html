@@ -1020,6 +1020,22 @@
     </div>
   </div>
 
+  <!-- Edit product name modal -->
+  <div id="stockNameEditModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:28px;box-shadow:0 8px 48px rgba(0,0,0,0.3);position:relative;">
+      <button onclick="document.getElementById('stockNameEditModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Edit product name</h3>
+      <p style="color:var(--muted);font-size:12.5px;margin:0 0 18px;">This renames the product going forward. Past sales already logged under the old name won't be relabeled.</p>
+      <input type="hidden" id="stockNameEditId">
+      <div style="margin-bottom:16px;">
+        <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Product name</label>
+        <input type="text" id="stockNameEditInput" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
+      </div>
+      <button id="saveStockNameBtn" style="width:100%;background:linear-gradient(135deg,var(--dark),#2a2a3e);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">Save changes</button>
+      <div class="status-line" id="stockNameEditStatus"></div>
+    </div>
+  </div>
+
   <!-- Rider feedback modal -->
   <div id="riderFeedbackModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
     <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:28px;box-shadow:var(--shadow-lg);position:relative;">
@@ -3147,7 +3163,7 @@
           </button>
         </td>
         ${imgCell}
-        <td><strong>${escapeHtml(item.name)}</strong>${deadBadge}
+        <td><strong>${escapeHtml(item.name)}</strong> <button data-editname="${item.id}" title="Edit product name" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0 2px;">✎</button>${deadBadge}
           ${isCounted?`<div style="font-size:9.5px;color:var(--green);font-weight:700;margin-top:2px;">✓ Counted ${countedAt}</div>`:''}
           <div style="height:4px;background:#f1efe9;border-radius:999px;margin-top:5px;width:120px;">
             <div style="height:4px;background:${barColor};border-radius:999px;width:${pct}%;"></div>
@@ -5858,10 +5874,36 @@
     t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500);
   });
   document.getElementById('stockBody').addEventListener('click', async e=>{
+    const editBtn=e.target.closest('[data-editname]');
+    if(editBtn){
+      const item = inventory.find(i=>i.id===editBtn.dataset.editname); if(!item) return;
+      document.getElementById('stockNameEditId').value = item.id;
+      document.getElementById('stockNameEditInput').value = item.name;
+      document.getElementById('stockNameEditStatus').textContent = '';
+      document.getElementById('stockNameEditModal').style.display='flex';
+      return;
+    }
     const btn=e.target.closest('[data-stockdel]'); if(!btn) return;
     if(!confirm('Remove this product from inventory?')) return;
     inventory=inventory.filter(i=>i.id!==btn.dataset.stockdel);
     await saveInventory(); renderStock();
+  });
+  document.getElementById('saveStockNameBtn').addEventListener('click', async ()=>{
+    const id = document.getElementById('stockNameEditId').value;
+    const newName = document.getElementById('stockNameEditInput').value.trim();
+    const statusEl = document.getElementById('stockNameEditStatus');
+    const item = inventory.find(i=>i.id===id);
+    if(!item) return;
+    if(!newName){ statusEl.style.color='var(--red)'; statusEl.textContent='Name cannot be empty.'; return; }
+    const dupe = inventory.find(i=>i.id!==id && i.name.toLowerCase()===newName.toLowerCase());
+    if(dupe){ statusEl.style.color='var(--red)'; statusEl.textContent='Another product already has that name.'; return; }
+    item.name = newName;
+    await saveInventory();
+    renderStock();
+    const {image:_,...rest} = item;
+    pushToSheetTyped({...rest, __type:'inventory'}); // fire and forget
+    statusEl.style.color='var(--green)'; statusEl.textContent='✓ Saved';
+    setTimeout(()=>document.getElementById('stockNameEditModal').style.display='none', 700);
   });
 
   // Customer wiring
