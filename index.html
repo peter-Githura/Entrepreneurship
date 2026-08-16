@@ -4635,7 +4635,10 @@
   }
 
   // ---- ISO 8601 week helpers ----
-  const fmtISO = d => d.toISOString().slice(0,10);
+  // NOTE: uses local date parts, NOT toISOString() — toISOString() converts to UTC,
+  // which shifts a local midnight timestamp back a day for timezones ahead of UTC
+  // (e.g. Nairobi, UTC+3). That was causing week ranges to show a day early.
+  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   function isoWeeksInYear(year){
     const p = y => (y + Math.floor(y/4) - Math.floor(y/100) + Math.floor(y/400)) % 7;
@@ -4671,7 +4674,7 @@
     const sel = document.getElementById('riderReportWeekYear'); if(!sel) return;
     const curYear = new Date().getFullYear();
     if(sel.options.length) return; // already populated
-    [curYear-1, curYear].forEach(y=>{
+    [curYear, curYear+1, curYear+2].forEach(y=>{
       const opt = document.createElement('option'); opt.value=y; opt.textContent=y;
       if(y===curYear) opt.selected = true;
       sel.appendChild(opt);
@@ -4688,8 +4691,9 @@
     let optionsHtml = '';
     for(let w=1; w<=totalWeeks; w++){
       const {from, to} = isoWeekRange(yearVal, w);
-      const label = `W${w} · ${monthShort(new Date(from+'T00:00:00'))} – ${monthShort(new Date(to+'T00:00:00'))}`;
-      optionsHtml += `<option value="${w}">${label}</option>`;
+      const isCurrent = yearVal===curWeekYear && w===curWeek;
+      const label = `${isCurrent?'★ ':''}W${w} · ${monthShort(new Date(from+'T00:00:00'))} – ${monthShort(new Date(to+'T00:00:00'))}${isCurrent?' (current week)':''}`;
+      optionsHtml += `<option value="${w}"${isCurrent?' style="background:#fff8e1;color:#c98a00;font-weight:800;"':''}>${label}</option>`;
     }
     weekSel.innerHTML = optionsHtml;
     if(yearVal===curWeekYear && curWeek<=totalWeeks) weekSel.value = curWeek;
@@ -4717,7 +4721,7 @@
       const r = isoWeekRange(year, week);
       from=r.from; to=r.to;
     } else if(period==='month'){
-      from=today.toISOString().slice(0,7)+'-01'; to=fmt(today);
+      from=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01`; to=fmt(today);
     } else if(period==='lastmonth'){
       const lm=new Date(today.getFullYear(),today.getMonth()-1,1);
       const lme=new Date(today.getFullYear(),today.getMonth(),0);
