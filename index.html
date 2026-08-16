@@ -1843,11 +1843,12 @@
         if(!existing) existing = localByFp[fp];
 
         if(existing){
-          // Update fields that might have been filled in the sheet after initial import
+          // Update fields whenever the sheet value differs from local — this is how corrections
+          // made directly in the sheet (e.g. fixing a mis-tagged rider) get pulled back in.
           let changed = false;
-          if(sheetLocation && !existing.deliveryLocation){ existing.deliveryLocation = sheetLocation; changed = true; }
-          if(sheetRider && !existing.riderName){ existing.riderName = sheetRider; changed = true; }
-          if(sheetPhone && !existing.customerPhone){ existing.customerPhone = sheetPhone; changed = true; }
+          if(sheetLocation && existing.deliveryLocation !== sheetLocation){ existing.deliveryLocation = sheetLocation; changed = true; }
+          if(sheetRider && existing.riderName !== sheetRider){ existing.riderName = sheetRider; changed = true; }
+          if(sheetPhone && existing.customerPhone !== sheetPhone){ existing.customerPhone = sheetPhone; changed = true; }
           if(changed) updated++;
           return;
         }
@@ -4730,11 +4731,17 @@
       const settlementStatus = payRecord?.status||'pending';
       const totalPayment = totalFees + tip;
 
+      const riderPhotoImg = riderRecord?.photo
+        ? `<img src="${riderRecord.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:#3a3a52;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏍️</div>`;
       html += `<div class="rider-block">
         <div class="rider-header">
-          <div>
-            <div class="rider-name">🏍️ ${riderName}</div>
-            <div class="rider-id">${riderRecord?riderRecord.id:'—'} ${riderRecord?.phone?'· '+riderRecord.phone:''}</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            ${riderPhotoImg}
+            <div>
+              <div class="rider-name">${riderName}</div>
+              <div class="rider-id">${riderRecord?riderRecord.id:'—'} ${riderRecord?.phone?'· '+riderRecord.phone:''}</div>
+            </div>
           </div>
         </div>
         <div class="stats-row">
