@@ -914,10 +914,22 @@
           <label>Quick select</label>
           <select id="riderReportPeriod" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;" onchange="applyRiderPayPeriod()">
             <option value="week">This week (last 7 days)</option>
+            <option value="lastweek">Last week</option>
+            <option value="isoweek">Pick week number…</option>
             <option value="month">This month</option>
             <option value="lastmonth">Last month</option>
             <option value="custom">Custom (use dates above)</option>
           </select>
+        </div>
+      </div>
+      <div id="riderReportWeekRow" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="field" style="margin:0;">
+          <label>Year</label>
+          <select id="riderReportWeekYear" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;" onchange="populateWeekNumSelect();applyRiderPayPeriod()"></select>
+        </div>
+        <div class="field" style="margin:0;grid-column:span 2;">
+          <label>Week number</label>
+          <select id="riderReportWeekNum" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;" onchange="applyRiderPayPeriod()"></select>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
@@ -942,7 +954,7 @@
       </div>
 
       <!-- Tip + Comment + Buttons row -->
-      <div style="display:grid;grid-template-columns:140px 1fr auto auto;gap:10px;align-items:end;margin-bottom:14px;">
+      <div style="display:grid;grid-template-columns:140px 1fr auto auto auto;gap:10px;align-items:end;margin-bottom:14px;">
         <div class="field" style="margin:0;">
           <label>Tip / bonus (KES)</label>
           <input type="number" id="riderTipAmount" min="0" step="50" placeholder="0" style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;font-family:inherit;font-size:13px;width:100%;">
@@ -953,6 +965,7 @@
         </div>
         <button class="save-btn" id="markPaidBtn" style="background:linear-gradient(135deg,var(--green),#009070);padding:9px 16px;white-space:nowrap;margin:0;">✓ Mark as Paid</button>
         <button class="save-btn" id="riderReportBtn" style="background:linear-gradient(135deg,#1e1e2e,#2a2a3e);padding:9px 16px;white-space:nowrap;margin:0;">📄 PDF Report</button>
+        <button class="save-btn" id="riderReportPrintBtn" style="background:#f4f5f9;color:var(--dark);border:1.5px solid var(--line);padding:9px 16px;white-space:nowrap;margin:0;">🖨️ Print</button>
       </div>
 
       <!-- Settlement log table -->
@@ -4621,14 +4634,88 @@
       riderNames.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
   }
 
+  // ---- ISO 8601 week helpers ----
+  const fmtISO = d => d.toISOString().slice(0,10);
+
+  function isoWeeksInYear(year){
+    const p = y => (y + Math.floor(y/4) - Math.floor(y/100) + Math.floor(y/400)) % 7;
+    return (p(year)===4 || p(year-1)===3) ? 53 : 52;
+  }
+
+  function isoWeekMonday(year, week){
+    const jan4 = new Date(year,0,4);
+    const jan4Day = jan4.getDay()||7; // Mon=1..Sun=7
+    const week1Monday = new Date(jan4);
+    week1Monday.setDate(jan4.getDate() - jan4Day + 1);
+    const monday = new Date(week1Monday);
+    monday.setDate(week1Monday.getDate() + (week-1)*7);
+    return monday;
+  }
+
+  function isoWeekRange(year, week){
+    const monday = isoWeekMonday(year, week);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+    return {from: fmtISO(monday), to: fmtISO(sunday)};
+  }
+
+  function currentISOWeek(date){
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    const week = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    return {week, year: d.getUTCFullYear()};
+  }
+
+  function populateWeekYearSelect(){
+    const sel = document.getElementById('riderReportWeekYear'); if(!sel) return;
+    const curYear = new Date().getFullYear();
+    if(sel.options.length) return; // already populated
+    [curYear-1, curYear].forEach(y=>{
+      const opt = document.createElement('option'); opt.value=y; opt.textContent=y;
+      if(y===curYear) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  window.populateWeekNumSelect = function(){
+    const weekSel = document.getElementById('riderReportWeekNum');
+    const yearVal = parseInt(document.getElementById('riderReportWeekYear')?.value) || new Date().getFullYear();
+    if(!weekSel) return;
+    const totalWeeks = isoWeeksInYear(yearVal);
+    const {week: curWeek, year: curWeekYear} = currentISOWeek(new Date());
+    const monthShort = d => d.toLocaleDateString('en-KE',{day:'2-digit',month:'short'});
+    let optionsHtml = '';
+    for(let w=1; w<=totalWeeks; w++){
+      const {from, to} = isoWeekRange(yearVal, w);
+      const label = `W${w} · ${monthShort(new Date(from+'T00:00:00'))} – ${monthShort(new Date(to+'T00:00:00'))}`;
+      optionsHtml += `<option value="${w}">${label}</option>`;
+    }
+    weekSel.innerHTML = optionsHtml;
+    if(yearVal===curWeekYear && curWeek<=totalWeeks) weekSel.value = curWeek;
+  };
+
   function getRiderReportRange(){
     const today = new Date();
-    const fmt = d => d.toISOString().slice(0,10);
+    const fmt = fmtISO;
     const period = document.getElementById('riderReportPeriod')?.value||'week';
+    const weekRow = document.getElementById('riderReportWeekRow');
+    if(weekRow) weekRow.style.display = period==='isoweek' ? 'grid' : 'none';
     let from, to;
     if(period==='week'){
       const f=new Date(today); f.setDate(today.getDate()-6);
       from=fmt(f); to=fmt(today);
+    } else if(period==='lastweek'){
+      const {year, week} = currentISOWeek(today);
+      const r = isoWeekRange(year, week-1<1 ? isoWeeksInYear(year-1) : week-1);
+      from=r.from; to=r.to;
+    } else if(period==='isoweek'){
+      populateWeekYearSelect();
+      if(!document.getElementById('riderReportWeekNum').options.length) populateWeekNumSelect();
+      const year = parseInt(document.getElementById('riderReportWeekYear')?.value) || today.getFullYear();
+      const week = parseInt(document.getElementById('riderReportWeekNum')?.value) || currentISOWeek(today).week;
+      const r = isoWeekRange(year, week);
+      from=r.from; to=r.to;
     } else if(period==='month'){
       from=today.toISOString().slice(0,7)+'-01'; to=fmt(today);
     } else if(period==='lastmonth'){
@@ -4660,7 +4747,7 @@
     if(el) el.textContent = riderSales.length ? `${riderSales.length} delivery${riderSales.length!==1?'ies':''} · ${fmtKES(totalFees)} fees` : 'No deliveries in this period';
   }
 
-  function generateRiderPDF(){
+  function generateRiderPDF(autoPrint){
     const riderFilter = document.getElementById('riderReportRider').value;
     const {from, to} = getRiderReportRange();
     const allRiders = riderFilter==='all' ? [...new Set(sales.filter(s=>s.riderName).map(s=>s.riderName))] : [riderFilter];
@@ -4701,8 +4788,29 @@
       .footer{margin-top:24px;padding-top:14px;border-top:1px solid #e4e6ef;display:flex;justify-content:space-between;font-size:10px;color:#7a7d9a;}
       .sig-box{border:1px solid #e4e6ef;border-radius:8px;padding:14px 16px;min-width:200px;text-align:center;}
       .sig-line{border-top:1px solid #1e1e2e;margin-top:36px;padding-top:6px;}
+      .no-print{position:sticky;top:0;background:#fff;z-index:50;display:flex;gap:10px;justify-content:flex-end;padding:10px 0 16px;margin-bottom:4px;border-bottom:1px solid #e4e6ef;}
+      .no-print button{font-family:inherit;font-weight:800;font-size:13px;border-radius:8px;padding:9px 16px;cursor:pointer;border:none;}
+      .no-print .dl-btn{background:linear-gradient(135deg,#1e1e2e,#2a2a3e);color:#fff;}
+      .no-print .print-btn{background:#f4f5f9;color:#1e1e2e;border:1px solid #e4e6ef;}
+      .rf-modal{display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;}
+      .rf-modal.show{display:flex;}
+      .rf-box{background:#fff;border-radius:20px;max-width:440px;width:100%;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;}
+      .rf-box h3{margin:0 0 4px;font-size:16px;font-weight:800;}
+      .rf-box .rf-label{color:#7a7d9a;font-size:12px;margin:0 0 14px;}
+      .rf-box .rf-field{margin-bottom:14px;}
+      .rf-box .rf-field label{display:block;font-size:10px;font-weight:800;color:#7a7d9a;text-transform:uppercase;margin-bottom:5px;}
+      .rf-box select,.rf-box textarea{width:100%;border:1.5px solid #e4e6ef;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;}
+      .rf-box textarea{resize:vertical;}
+      .rf-box .rf-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:#7a7d9a;}
+      .rf-box .rf-save{width:100%;background:linear-gradient(135deg,#1e1e2e,#2a2a3e);color:#fff;border:none;border-radius:10px;padding:12px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;}
+      .rf-status{font-size:12px;margin-top:8px;text-align:center;height:14px;}
+      @media print{.no-print{display:none;}}
       @media print{body{padding:16px;}@page{margin:12mm;}}
     </style></head><body>
+    <div class="no-print">
+      <button class="print-btn" onclick="window.print()">🖨️ Print</button>
+      <button class="dl-btn" onclick="window.print()">⬇ Download PDF</button>
+    </div>
     <div class="header">
       <div>
         <div class="brand">Elfancy Vapes<div class="sub">SALES LEDGER · RIDER PAYMENT REPORT</div></div>
@@ -4762,6 +4870,7 @@
         const fbStatus = fb?.status||'';
         const fbBadgeClass = fbStatus==='Late'?'bad':fbStatus==='Slightly Delayed'?'warn':'ok';
         const fbBadgeText = fbStatus||'On time';
+        const escAttr = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
         html += `<tr>
           <td>${s.date}</td>
           <td style="font-size:10px;color:#7a7d9a;">${s.orderNumber||'—'}</td>
@@ -4771,8 +4880,8 @@
           <td style="font-weight:800;">${s.transportCost||0}</td>
           <td><span class="badge ok">Completed</span></td>
           <td>
-            <span class="badge ${fbBadgeClass}" style="cursor:pointer;" onclick="window.opener && window.opener.openFeedbackModal && window.opener.openFeedbackModal('${s.id}')" title="Click to set delivery status">${fbBadgeText} ✎</span>
-            ${fb?.note?`<div style="font-size:10px;color:#7a7d9a;margin-top:3px;font-style:italic;">${fb.note}</div>`:''}
+            <span class="badge ${fbBadgeClass}" style="cursor:pointer;" data-rf-open data-saleid="${escAttr(s.id)}" data-status="${escAttr(fbStatus)}" data-note="${escAttr(fb?.note||'')}" data-label="${escAttr((s.riderName||'')+' · '+s.date+' · '+(s.item||'')+' · '+(s.deliveryLocation||''))}" title="Click to set delivery status">${fbBadgeText} ✎</span>
+            <div class="rf-note" data-notefor="${escAttr(s.id)}" style="font-size:10px;color:#7a7d9a;margin-top:3px;font-style:italic;${fb?.note?'':'display:none;'}">${fb?.note||''}</div>
           </td>
         </tr>`;
       }
@@ -4806,13 +4915,83 @@
         <div class="sig-box"><div style="font-size:10px;color:#7a7d9a;margin-bottom:4px;">Prepared by</div><div class="sig-line">Operations Manager</div></div>
         <div class="sig-box"><div style="font-size:10px;color:#7a7d9a;margin-bottom:4px;">Received by (Rider)</div><div class="sig-line">Signature &amp; Date</div></div>
       </div>
-    </div></body></html>`;
+    </div>`;
+
+    // In-report feedback modal — lets you set delivery status without leaving this window.
+    html += `<div class="rf-modal" id="rfModal">
+      <div class="rf-box">
+        <button class="rf-close" onclick="document.getElementById('rfModal').classList.remove('show')">✕</button>
+        <h3>Rider feedback</h3>
+        <p class="rf-label" id="rfLabel"></p>
+        <div class="rf-field"><label>Delivery status</label>
+          <select id="rfStatus">
+            <option value="">On Time</option>
+            <option value="Slightly Delayed">Slightly Delayed</option>
+            <option value="Late">Late</option>
+          </select>
+        </div>
+        <div class="rf-field"><label>Notes (optional)</label>
+          <textarea id="rfNote" rows="3" placeholder="e.g. Boniface called the customer when gate was locked"></textarea>
+        </div>
+        <button class="rf-save" id="rfSaveBtn">Save feedback</button>
+        <div class="rf-status" id="rfStatusMsg"></div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        var currentSaleId = null;
+        document.body.addEventListener('click', function(e){
+          var el = e.target.closest('[data-rf-open]');
+          if(!el) return;
+          currentSaleId = el.dataset.saleid;
+          document.getElementById('rfLabel').textContent = el.dataset.label;
+          document.getElementById('rfStatus').value = el.dataset.status || '';
+          document.getElementById('rfNote').value = el.dataset.note || '';
+          document.getElementById('rfStatusMsg').textContent = '';
+          document.getElementById('rfModal').classList.add('show');
+        });
+        document.getElementById('rfSaveBtn').addEventListener('click', async function(){
+          if(!currentSaleId) return;
+          var status = document.getElementById('rfStatus').value;
+          var note = document.getElementById('rfNote').value.trim();
+          var msg = document.getElementById('rfStatusMsg');
+          if(!window.opener || window.opener.closed || !window.opener.saveFeedbackFromReport){
+            msg.style.color = '#e03d3d';
+            msg.textContent = 'Dashboard window is closed — reopen the report from there.';
+            return;
+          }
+          msg.style.color = '#7a7d9a'; msg.textContent = 'Saving…';
+          try{
+            await window.opener.saveFeedbackFromReport(currentSaleId, status, note);
+            // Update this row's badge in place, no need to regenerate/reprint
+            var badge = document.querySelector('[data-rf-open][data-saleid="'+CSS.escape(currentSaleId)+'"]');
+            if(badge){
+              badge.className = 'badge ' + (status==='Late'?'bad':status==='Slightly Delayed'?'warn':'ok');
+              badge.textContent = (status||'On time') + ' ✎';
+              badge.dataset.status = status;
+              badge.dataset.note = note;
+            }
+            var noteEl = document.querySelector('.rf-note[data-notefor="'+CSS.escape(currentSaleId)+'"]');
+            if(noteEl){
+              noteEl.textContent = note;
+              noteEl.style.display = note ? '' : 'none';
+            }
+            msg.style.color = '#00A082'; msg.textContent = '✓ Saved';
+            setTimeout(function(){ document.getElementById('rfModal').classList.remove('show'); }, 700);
+          }catch(err){
+            msg.style.color = '#e03d3d';
+            msg.textContent = 'Could not save: ' + err.message;
+          }
+        });
+      })();
+    <\/script>
+    </body></html>`;
 
     const win = window.open('','_blank');
     win.document.write(html);
     win.document.close();
     lastFeedbackReportWindow = win;
-    setTimeout(()=>win.print(), 600);
+    if(autoPrint) setTimeout(()=>win.print(), 600);
   }
 
   // ---------- Settlement log ----------
@@ -5286,7 +5465,8 @@
   document.getElementById('exportInvCsvBtn').addEventListener('click', downloadInventoryCSV);
   document.getElementById('exportInvXlsxBtn').addEventListener('click', downloadInventoryExcel);
 
-  document.getElementById('riderReportBtn').addEventListener('click', generateRiderPDF);
+  document.getElementById('riderReportBtn').addEventListener('click', ()=>generateRiderPDF(false));
+  document.getElementById('riderReportPrintBtn').addEventListener('click', ()=>generateRiderPDF(true));
   document.getElementById('riderReportPeriod').addEventListener('change', applyRiderPayPeriod);
   document.getElementById('riderPayFrom')?.addEventListener('change', ()=>{
     document.getElementById('riderReportPeriod').value='custom';
@@ -5302,7 +5482,22 @@
 
   // Rider feedback modal
   let currentFeedbackSale = null;
-  let lastFeedbackReportWindow = null; // ref to an open printed report window, so we can refresh it after saving
+  let lastFeedbackReportWindow = null; // ref to an open printed report window
+
+  async function upsertRiderFeedback(saleId, status, note){
+    const sale = sales.find(s=>s.id===saleId);
+    const existing = riderFeedback.findIndex(f=>f.saleId===saleId);
+    const entry = {
+      id: existing>=0 ? riderFeedback[existing].id : Date.now().toString(36),
+      saleId, riderName: sale?.riderName||'', status, note: (note||'').trim(),
+      date: sale?.date||''
+    };
+    if(existing>=0) riderFeedback[existing]=entry;
+    else riderFeedback.push(entry);
+    await saveRiderFeedback();
+    renderRiderPerformance();
+    return entry;
+  }
 
   // Exposed globally so the printed Rider Payment Report (a separate window) can call back into this one.
   window.openFeedbackModal = function(saleId){
@@ -5317,22 +5512,20 @@
     window.focus();
   };
 
+  // Exposed globally so the printed Rider Payment Report window can save a status/note update
+  // directly, without bouncing focus back to this dashboard window.
+  window.saveFeedbackFromReport = async function(saleId, status, note){
+    await upsertRiderFeedback(saleId, status, note);
+  };
+
   document.getElementById('saveRiderFeedbackBtn').addEventListener('click', async ()=>{
     if(!currentFeedbackSale) return;
-    const existing = riderFeedback.findIndex(f=>f.saleId===currentFeedbackSale.id);
-    const entry = {
-      id: existing>=0 ? riderFeedback[existing].id : Date.now().toString(36),
-      saleId: currentFeedbackSale.id,
-      riderName: currentFeedbackSale.riderName,
-      status: document.getElementById('riderFeedbackStatus').value,
-      note: document.getElementById('riderFeedbackNote').value.trim(),
-      date: currentFeedbackSale.date
-    };
-    if(existing>=0) riderFeedback[existing]=entry;
-    else riderFeedback.push(entry);
-    await saveRiderFeedback();
+    await upsertRiderFeedback(
+      currentFeedbackSale.id,
+      document.getElementById('riderFeedbackStatus').value,
+      document.getElementById('riderFeedbackNote').value.trim()
+    );
     document.getElementById('riderFeedbackModal').style.display='none';
-    renderRiderPerformance();
     // If a printed report window is still open, regenerate it so the badge/status reflects immediately
     if(lastFeedbackReportWindow && !lastFeedbackReportWindow.closed){
       generateRiderPDF();
