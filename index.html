@@ -990,72 +990,6 @@
     </div>
   </div>
 
-  <!-- Rider edit modal -->
-  <div id="riderEditModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
-    <div style="background:#fff;border-radius:20px;max-width:440px;width:100%;padding:28px;box-shadow:0 8px 48px rgba(0,0,0,0.3);position:relative;">
-      <button onclick="document.getElementById('riderEditModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
-      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Edit rider</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 18px;" id="riderEditLabel"></p>
-      <input type="hidden" id="riderEditIdx">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-        <div id="riderEditPhotoPreview" style="width:64px;height:64px;border-radius:50%;background:var(--dark);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">🏍️</div>
-        <div style="flex:1;">
-          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Update photo</label>
-          <input type="file" id="riderEditPhoto" accept="image/*" style="font-size:12px;">
-          <input type="hidden" id="riderEditPhotoData">
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-        <div>
-          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Name</label>
-          <input type="text" id="riderEditName" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
-        </div>
-        <div>
-          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Phone</label>
-          <input type="text" id="riderEditPhone" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
-        </div>
-      </div>
-      <button id="saveRiderEditBtn" style="width:100%;background:linear-gradient(135deg,var(--dark),#2a2a3e);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">Save changes</button>
-      <div class="status-line" id="riderEditStatus"></div>
-    </div>
-  </div>
-
-  <!-- Edit product name modal -->
-  <div id="stockNameEditModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
-    <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:28px;box-shadow:0 8px 48px rgba(0,0,0,0.3);position:relative;">
-      <button onclick="document.getElementById('stockNameEditModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
-      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Edit product name</h3>
-      <p style="color:var(--muted);font-size:12.5px;margin:0 0 18px;">This renames the product going forward. Past sales already logged under the old name won't be relabeled.</p>
-      <input type="hidden" id="stockNameEditId">
-      <div style="margin-bottom:16px;">
-        <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Product name</label>
-        <input type="text" id="stockNameEditInput" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
-      </div>
-      <button id="saveStockNameBtn" style="width:100%;background:linear-gradient(135deg,var(--dark),#2a2a3e);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">Save changes</button>
-      <div class="status-line" id="stockNameEditStatus"></div>
-    </div>
-  </div>
-
-  <!-- Rider feedback modal -->
-  <div id="riderFeedbackModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
-    <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:28px;box-shadow:var(--shadow-lg);position:relative;">
-      <button onclick="document.getElementById('riderFeedbackModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
-      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Rider feedback</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 16px;" id="riderFeedbackOrderLabel"></p>
-      <div class="field"><label>Delivery status</label>
-        <select id="riderFeedbackStatus" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;">
-          <option value="">On Time</option>
-          <option value="Slightly Delayed">Slightly Delayed</option>
-          <option value="Late">Late</option>
-        </select>
-      </div>
-      <div class="field"><label>Notes (optional)</label>
-        <textarea id="riderFeedbackNote" rows="3" placeholder="e.g. Boniface called the customer when gate was locked — great initiative" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;resize:vertical;"></textarea>
-      </div>
-      <button class="save-btn" id="saveRiderFeedbackBtn">Save feedback</button>
-    </div>
-  </div>
-
   <!-- ===== BEST SELLING TIME ===== -->
   <div class="panel" style="margin-top:18px;">
     <h2>Best selling times <span class="hint">add time when logging sales to activate</span></h2>
@@ -1108,7 +1042,6 @@
   </div>
 
 
-</div>
 </div>
 <div class="dashboard-section" id="sec-returns">
   <!-- Returns & Refunds section -->
@@ -1480,6 +1413,75 @@
   </div>
 
 </div>
+
+
+</div>
+
+  <!-- Rider edit modal -->
+  <div id="riderEditModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:#fff;border-radius:20px;max-width:440px;width:100%;padding:28px;box-shadow:0 8px 48px rgba(0,0,0,0.3);position:relative;">
+      <button onclick="document.getElementById('riderEditModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Edit rider</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 18px;" id="riderEditLabel"></p>
+      <input type="hidden" id="riderEditIdx">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+        <div id="riderEditPhotoPreview" style="width:64px;height:64px;border-radius:50%;background:var(--dark);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">🏍️</div>
+        <div style="flex:1;">
+          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Update photo</label>
+          <input type="file" id="riderEditPhoto" accept="image/*" style="font-size:12px;">
+          <input type="hidden" id="riderEditPhotoData">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Name</label>
+          <input type="text" id="riderEditName" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Phone</label>
+          <input type="text" id="riderEditPhone" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
+        </div>
+      </div>
+      <button id="saveRiderEditBtn" style="width:100%;background:linear-gradient(135deg,var(--dark),#2a2a3e);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">Save changes</button>
+      <div class="status-line" id="riderEditStatus"></div>
+    </div>
+  </div>
+
+  <!-- Edit product name modal -->
+  <div id="stockNameEditModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:28px;box-shadow:0 8px 48px rgba(0,0,0,0.3);position:relative;">
+      <button onclick="document.getElementById('stockNameEditModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Edit product name</h3>
+      <p style="color:var(--muted);font-size:12.5px;margin:0 0 18px;">This renames the product going forward. Past sales already logged under the old name won't be relabeled.</p>
+      <input type="hidden" id="stockNameEditId">
+      <div style="margin-bottom:16px;">
+        <label style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;">Product name</label>
+        <input type="text" id="stockNameEditInput" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;">
+      </div>
+      <button id="saveStockNameBtn" style="width:100%;background:linear-gradient(135deg,var(--dark),#2a2a3e);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">Save changes</button>
+      <div class="status-line" id="stockNameEditStatus"></div>
+    </div>
+  </div>
+
+  <!-- Rider feedback modal -->
+  <div id="riderFeedbackModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,20,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:28px;box-shadow:var(--shadow-lg);position:relative;">
+      <button onclick="document.getElementById('riderFeedbackModal').style.display='none';" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;">Rider feedback</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 16px;" id="riderFeedbackOrderLabel"></p>
+      <div class="field"><label>Delivery status</label>
+        <select id="riderFeedbackStatus" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;">
+          <option value="">On Time</option>
+          <option value="Slightly Delayed">Slightly Delayed</option>
+          <option value="Late">Late</option>
+        </select>
+      </div>
+      <div class="field"><label>Notes (optional)</label>
+        <textarea id="riderFeedbackNote" rows="3" placeholder="e.g. Boniface called the customer when gate was locked — great initiative" style="width:100%;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-family:inherit;font-size:13px;resize:vertical;"></textarea>
+      </div>
+      <button class="save-btn" id="saveRiderFeedbackBtn">Save feedback</button>
+    </div>
+  </div>
 
 <!-- Customer edit modal -->
 <div class="modal-bg" id="custModalBg">
